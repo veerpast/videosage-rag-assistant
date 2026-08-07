@@ -1,12 +1,12 @@
 from dotenv import load_dotenv
+
+load_dotenv() # must run before modules read provider environment variables
+
 from utils.audio_processor import process_input
 from core.transcriber import transcribe_all
 from core.summarizer import summarize, generate_title
 from core.extractor import extract_action_items, extract_key_decisions, extract_questions
 from core.rag_engine import build_rag_chain, ask_question
-
-
-load_dotenv() # used to load environment variables from a .env file, if present
 
 def run_pipeline(source :str, language :str = "english") -> dict:
     print("starting VideoSage")
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     print("\n💬 Chat with your meeting (type 'exit' to quit)\n")
     if result["rag_chain"] is None:
         print("\n⚠️  RAG chat is unavailable because the retrieval chain failed to initialize.")
-        print("Please verify your MISTRAL_API_KEY and restart the application.")
+        print("Please configure GROQ_API_KEY or MISTRAL_API_KEY and restart the application.")
         raise SystemExit(0)
 
     rag_chain = result["rag_chain"]

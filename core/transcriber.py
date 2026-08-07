@@ -2,6 +2,7 @@ import whisper
 import os
 import requests
 from pydub import AudioSegment
+from groq import Groq
 
 # Sarvam's sync STT-translate API rejects audio longer than 30s.
 # We slice each chunk into 25s pieces (with a 5s safety margin) before sending.
@@ -9,6 +10,9 @@ SARVAM_PIECE_SECONDS = 25
 
 
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_STT_MODEL = os.getenv("GROQ_STT_MODEL", "whisper-large-v3-turbo")
+GROQ_TRANSLATION_MODEL = os.getenv("GROQ_TRANSLATION_MODEL", "whisper-large-v3")
 
 
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")
@@ -35,6 +39,32 @@ def transcribe_chunk_whisper(chunk_path: str) -> str:
 
     result = model.transcribe(chunk_path, task="transcribe")  
     return result["text"]  
+
+
+def transcribe_chunk_groq(chunk_path: str, translate: bool = False) -> str:
+    if not GROQ_API_KEY:
+        raise RuntimeError("GROQ_API_KEY is not configured.")
+
+    client = Groq(api_key=GROQ_API_KEY)
+    with open(chunk_path, "rb") as audio_file:
+        file_data = (os.path.basename(chunk_path), audio_file.read())
+
+    if translate:
+        result = client.audio.translations.create(
+            file=file_data,
+            model=GROQ_TRANSLATION_MODEL,
+            response_format="json",
+            temperature=0.0,
+        )
+    else:
+        result = client.audio.transcriptions.create(
+            file=file_data,
+            model=GROQ_STT_MODEL,
+            language="en",
+            response_format="json",
+            temperature=0.0,
+        )
+    return result.text.strip()
 
 
 def _send_to_sarvam(piece_path: str) -> str:
@@ -99,7 +129,20 @@ def transcribe_chunk(chunk_path: str, language: str = "english") -> str:
     - hinglish → Sarvam (translates to English while transcribing)
     """
     if language.lower() == "hinglish":
-        return transcribe_chunk_sarvam(chunk_path)
+        if SARVAM_API_KEY:
+            try:
+                return transcribe_chunk_sarvam(chunk_path)
+            except Exception as exc:
+                print(f"⚠️ Sarvam failed; trying Groq translation: {exc}")
+        if GROQ_API_KEY:
+            return transcribe_chunk_groq(chunk_path, translate=True)
+        raise RuntimeError("Hinglish transcription requires SARVAM_API_KEY or GROQ_API_KEY.")
+
+    if GROQ_API_KEY:
+        try:
+            return transcribe_chunk_groq(chunk_path)
+        except Exception as exc:
+            print(f"⚠️ Groq transcription failed; trying local Whisper: {exc}")
     return transcribe_chunk_whisper(chunk_path)
 
 
@@ -107,7 +150,10 @@ def transcribe_all(chunks: list, language: str = "english") -> str:
 
     full_transcript = "" 
 
-    engine = "Sarvam AI" if language.lower() == "hinglish" else "Whisper"
+    if language.lower() == "hinglish":
+        engine = "Sarvam AI with Groq translation fallback"
+    else:
+        engine = "Groq Whisper with local Whisper fallback" if GROQ_API_KEY else "local Whisper"
     print(f"Using {engine} for transcription.")
 
     for i, chunk in enumerate(chunks):  
@@ -120,4 +166,4 @@ def transcribe_all(chunks: list, language: str = "english") -> str:
 
     print("Transcription complete.")
 
-    return full_transcript.strip()  
+    return full_transcript.strip()

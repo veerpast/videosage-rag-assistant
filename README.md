@@ -9,7 +9,7 @@ A polished AI meeting-intelligence workspace that transcribes video, creates con
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)
 ![LangChain](https://img.shields.io/badge/LangChain-RAG-1C3C3C?style=flat-square)
-![Mistral AI](https://img.shields.io/badge/Mistral-AI-FA520F?style=flat-square)
+![Groq](https://img.shields.io/badge/Groq-Primary%20AI-F55036?style=flat-square)
 ![Whisper](https://img.shields.io/badge/Whisper-Speech--to--Text-412991?style=flat-square)
 
 </div>
@@ -26,13 +26,13 @@ The project combines local speech recognition, multilingual transcription, LLM-b
 
 - Accepts a YouTube URL or a local audio/video file path.
 - Downloads or converts media and splits long recordings into manageable chunks.
-- Transcribes English audio locally with OpenAI Whisper.
-- Supports Hinglish speech-to-text translation through Sarvam AI.
+- Transcribes English audio with Groq Whisper and falls back to local Whisper.
+- Supports Hinglish translation through Sarvam AI with Groq fallback.
 - Generates a professional title and concise meeting summary.
 - Extracts action items, key decisions, and unresolved questions.
 - Builds a persistent Chroma vector index from the transcript.
 - Answers follow-up questions with retrieval-augmented generation.
-- Falls back to a local Ollama model when configured and available.
+- Uses Groq first, Mistral second, and local Ollama as an offline fallback.
 - Presents the workflow in a responsive, purpose-designed Streamlit UI.
 
 ## Product workflow
@@ -55,8 +55,8 @@ flowchart LR
 |---|---|
 | Interface | Streamlit, custom CSS |
 | Media ingestion | yt-dlp, FFmpeg, pydub |
-| Speech recognition | OpenAI Whisper, Sarvam AI |
-| LLM orchestration | LangChain, Mistral AI |
+| Speech recognition | Groq Whisper, OpenAI Whisper, Sarvam AI |
+| LLM orchestration | LangChain, Groq, Mistral AI |
 | Local fallback | Ollama |
 | Retrieval | ChromaDB, Hugging Face sentence transformers |
 | Language | Python 3.10+ |
@@ -89,7 +89,8 @@ cp .env.example .env
 
 | Variable | Required | Purpose |
 |---|---:|---|
-| `MISTRAL_API_KEY` | Yes | Summaries, extraction, and RAG answers |
+| `GROQ_API_KEY` | Recommended | Primary LLM and hosted Whisper transcription |
+| `MISTRAL_API_KEY` | No | Secondary cloud LLM fallback |
 | `SARVAM_API_KEY` | For Hinglish | Speech-to-text translation |
 | `WHISPER_MODEL` | No | Local Whisper model; defaults to `small` |
 | `OLLAMA_MODEL` | No | Local fallback model; defaults to `qwen2.5-coder:1.5b` |
@@ -123,7 +124,8 @@ videosage-rag-assistant/
 
 ## Design decisions
 
-- **Local-first transcription:** English audio stays on-device through Whisper.
+- **One provider strategy:** Groq powers both local and deployed runs for consistent behavior.
+- **Layered resilience:** Groq → Mistral → Ollama for text generation, with Ollama used only when installed locally.
 - **Chunked processing:** long media is split before transcription and summarization.
 - **Grounded answers:** questions retrieve relevant transcript segments before generation.
 - **Graceful model fallback:** supported LLM calls can use Ollama if the hosted provider fails.
@@ -136,7 +138,7 @@ The repository is prepared for Streamlit Community Cloud:
 1. Push the project to GitHub.
 2. In Streamlit Community Cloud, create an app from the repository.
 3. Set the entry point to `app.py`.
-4. Add `MISTRAL_API_KEY` and, optionally, `SARVAM_API_KEY` in **App settings → Secrets**.
+4. Add `GROQ_API_KEY` and optional fallback keys in **App settings → Secrets**.
 5. Deploy.
 
 > Whisper and sentence-transformer models are resource-intensive. For production traffic, moving transcription and vector indexing to background workers or managed services is recommended.
