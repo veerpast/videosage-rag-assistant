@@ -11,9 +11,13 @@ from core.rag_engine import build_rag_chain, ask_question
 def run_pipeline(source :str, language :str = "english") -> dict:
     print("starting VideoSage")
 
-    chunks = process_input(source)
+    res = process_input(source)
 
-    transcript = transcribe_all(chunks,language)
+    if isinstance(res, str):
+        transcript = res
+    else:
+        transcript = transcribe_all(res, language)
+        
     print(f"raw transcription (first 300 characters ) {transcript[:300]}")
 
     title = generate_title(transcript)

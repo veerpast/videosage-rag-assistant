@@ -27,3 +27,5 @@ python-dotenv>=1.0.0
 numpy>=1.26.0
 tqdm>=4.66.0
 requests>=2.32.0
+youtube-transcript-api>=0.6.2
+curl-cffi>=0.5.10

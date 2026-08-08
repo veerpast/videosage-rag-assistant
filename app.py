@@ -432,11 +432,14 @@ if run_btn:
                 st.info("⚙️ Pipeline running — see sidebar for live status…")
 
             update_step("audio", "active")
-            chunks = process_input(source)
+            res = process_input(source)
             update_step("audio", "done")
 
             update_step("transcript", "active")
-            transcript = transcribe_all(chunks, language)
+            if isinstance(res, str):
+                transcript = res  # Fast Path: Transcript already retrieved
+            else:
+                transcript = transcribe_all(res, language)  # Slow Path: Process audio chunks through Whisper
             update_step("transcript", "done")
 
             update_step("title", "active")
