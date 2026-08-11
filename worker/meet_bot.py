@@ -152,6 +152,9 @@ class GoogleMeetBot:
             "The meeting has ended",
             "Return to home screen",
             "You can't join this call",
+            "You can't join this video call",
+            "You can’t join this call",
+            "You can’t join this video call",
             "No one responded",
         )
         for marker in markers:
