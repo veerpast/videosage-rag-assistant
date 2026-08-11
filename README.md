@@ -186,7 +186,7 @@ videosage-rag-assistant/
 - **Microservice isolation:** Streamlit handles interaction while Oracle owns long-running browser and audio workloads.
 - **Private multi-tenant history:** Supabase Auth identifies users and RLS limits every account to its own meetings.
 - **Two-layer worker security:** a service webhook token protects the Oracle API and a user JWT assigns each job to its owner.
-- **Persistent bot identity:** Google authentication lives only in a locked-down Oracle browser profile configured through an SSH-only noVNC tunnel.
+- **Persistent bot identity:** Google authentication lives only in a locked-down official-Chrome profile configured through an SSH-only noVNC tunnel; Playwright reuses it only after interactive sign-in.
 - **Consent enforcement:** the UI and worker API both require recording-consent confirmation, which is timestamped in PostgreSQL.
 - **Data minimization:** raw WAV files and finished Meet URLs are discarded; users can permanently delete results immediately or let the hourly retention worker expire them.
 - **Restart-safe queue:** queued and interrupted jobs are recovered from PostgreSQL when the worker restarts.

@@ -21,6 +21,7 @@ class WorkerSettings:
     supabase_service_role_key: str
     recordings_dir: Path
     browser_profile_dir: Path
+    chrome_executable_path: str
     bot_name: str
     virtual_sink: str
     max_meeting_seconds: int
@@ -43,6 +44,9 @@ class WorkerSettings:
             supabase_service_role_key=_required("SUPABASE_SERVICE_ROLE_KEY"),
             recordings_dir=recordings_dir,
             browser_profile_dir=browser_profile_dir,
+            chrome_executable_path=os.getenv(
+                "CHROME_EXECUTABLE_PATH", "/usr/bin/google-chrome-stable"
+            ).strip(),
             bot_name=os.getenv("MEET_BOT_NAME", "VideoSage Assistant").strip(),
             virtual_sink=os.getenv("PULSE_SINK_NAME", "Virtual_Sink").strip(),
             max_meeting_seconds=int(os.getenv("MAX_MEETING_SECONDS", "21600")),

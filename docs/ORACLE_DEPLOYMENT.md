@@ -23,10 +23,10 @@ an anonymous browser can be rejected before the organizer can admit it.
 
 ## 2. Prepare the Oracle Always Free VM
 
-Prefer an Ubuntu Ampere A1 instance within the tenancy's current Always Free
-allowance. Ampere capacity is often unavailable, so the deployed showcase uses
-the Always Free `VM.Standard.E2.1.Micro` fallback (1 OCPU, 1 GB RAM) with a
-4 GB swap file and one meeting at a time. Never select a shape unless Oracle
+Use an Ubuntu `VM.Standard.E2.1.Micro` Always Free instance (1 OCPU, 1 GB RAM)
+with a 4 GB swap file and one meeting at a time. The x86-64 shape is required
+because Google does not publish its official Linux Chrome build for ARM, and
+Google Account sign-in rejects the automated Chromium build. Never select a shape unless Oracle
 labels it **Always Free-eligible**. An ephemeral public IPv4 address is free;
 replace the Streamlit worker URL if that address changes after recreation.
 
@@ -104,7 +104,9 @@ Expected health response:
 The worker uses a persistent browser profile at
 `/opt/videosage/browser-profile`. Sign in once through an SSH-only noVNC
 tunnel; ports `5901` and `6080` remain bound to localhost and are never opened
-in the Oracle firewall.
+in the Oracle firewall. The login helper launches official Google Chrome
+directly, without Playwright's automation flag; the worker later reuses the
+authenticated profile.
 
 On your computer, keep this tunnel running:
 

@@ -22,7 +22,9 @@ class GoogleMeetBot:
         with sync_playwright() as playwright:
             context = playwright.chromium.launch_persistent_context(
                 user_data_dir=str(self.settings.browser_profile_dir),
+                executable_path=self.settings.chrome_executable_path,
                 headless=False,
+                ignore_default_args=["--enable-automation"],
                 args=[
                     "--use-fake-ui-for-media-stream",
                     "--autoplay-policy=no-user-gesture-required",
@@ -30,6 +32,7 @@ class GoogleMeetBot:
                     "--disable-background-timer-throttling",
                     "--disable-renderer-backgrounding",
                     "--window-size=1280,720",
+                    "--disable-blink-features=AutomationControlled",
                 ],
                 viewport={"width": 1280, "height": 720},
                 locale="en-US",

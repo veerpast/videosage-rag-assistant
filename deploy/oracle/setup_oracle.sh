@@ -25,6 +25,19 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     pulseaudio-utils python3 python3-pip python3-venv unattended-upgrades \
     websockify x11vnc xvfb
 
+if [[ "$(dpkg --print-architecture)" != "amd64" ]]; then
+    echo "Official Google Chrome requires an amd64 Oracle VM for bot sign-in." >&2
+    exit 1
+fi
+if ! command -v google-chrome-stable >/dev/null 2>&1; then
+    chrome_package=$(mktemp --suffix=.deb)
+    curl -fsSL \
+        https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+        -o "$chrome_package"
+    apt-get install -y "$chrome_package"
+    rm -f "$chrome_package"
+fi
+
 # E2.1.Micro has 1 GB RAM. A persistent swap file prevents Chromium, FFmpeg,
 # and the Groq analysis client from being killed during a single demo session.
 if ! swapon --show=NAME --noheadings | grep -q .; then

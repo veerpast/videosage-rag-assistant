@@ -64,9 +64,13 @@ per-user quotas. The design intentionally supports one active meeting at a time.
 join this video call” before the organizer could admit it. Changing meeting access
 from Trusted to Open did not make an anonymous third-party bot eligible.
 
-**Resolution:** The worker now uses a dedicated signed-in Google identity stored
-in a persistent Chromium profile. One-time sign-in is performed through noVNC
-bound to localhost and carried over an SSH tunnel; VNC ports are never public.
+**Resolution:** The first attempt still failed because Google rejected
+Playwright's bundled Chromium as an insecure automated browser; 2FA did not
+change that browser-level decision. The final login helper launches official
+Google Chrome directly without Playwright's automation flag, stores the session
+in a persistent profile, and lets Playwright reuse it afterward. One-time sign-in
+is performed through noVNC bound to localhost and carried over an SSH tunnel;
+VNC ports are never public.
 
 ## Browser automation surviving changing UI copy
 
