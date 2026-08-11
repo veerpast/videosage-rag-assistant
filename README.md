@@ -30,8 +30,7 @@ The project combines browser automation, virtual audio capture, multilingual tra
 - Sends an autonomous browser bot to a Google Meet URL through an authenticated webhook.
 - Stores private meeting history in Supabase with email/password authentication and PostgreSQL RLS.
 - Downloads or converts media and splits long recordings into manageable chunks.
-- Transcribes English audio with Groq Whisper; local Whisper is an optional developer fallback.
-- Supports Hinglish translation with Groq and optionally prefers Sarvam AI when configured.
+- Transcribes English audio and translates Hinglish with Groq Whisper.
 - Generates a professional title and concise meeting summary.
 - Extracts action items, key decisions, and unresolved questions.
 - Builds an isolated in-memory Chroma index for each active RAG workspace.
@@ -74,7 +73,7 @@ flowchart TD
     D -->|No| E
 
     B -->|Local media| E[Slow Path Fallback<br/>Download or convert media]
-    E --> F[FFmpeg and pydub chunking<br/>Whisper or Sarvam transcription]
+    E --> F[FFmpeg and pydub chunking<br/>Groq Whisper transcription]
     F --> G
 
     G --> H[Groq analysis<br/>Summary and structured insights]
@@ -94,11 +93,11 @@ flowchart TD
 | Browser automation | Playwright Chromium, Xvfb |
 | Virtual audio | PulseAudio `Virtual_Sink`, FFmpeg |
 | Media ingestion | youtube-transcript-api, curl-cffi, yt-dlp, FFmpeg, pydub |
-| Speech recognition | Groq Whisper; optional local Whisper and Sarvam AI |
+| Speech recognition | Groq Whisper transcription and translation |
 | LLM orchestration | LangChain, Groq |
 | Retrieval | ChromaDB, ONNX `all-MiniLM-L6-v2` embeddings |
 | Persistence | Supabase PostgreSQL |
-| Infrastructure | Oracle Cloud Ampere A1, Caddy, systemd |
+| Infrastructure | Oracle Cloud Always Free (E2 Micro; A1-ready), Caddy, systemd |
 | Language | Python 3.10+ |
 
 ## Getting started
@@ -113,9 +112,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-The hosted application uses Groq for transcription. To add the optional local
-Whisper fallback on a development machine, install `requirements-local.txt`
-instead.
+The application uses Groq for both transcription and Hinglish-to-English
+translation, keeping the frontend and worker free of heavyweight local models.
 
 FFmpeg must also be installed on your machine. On macOS:
 
@@ -137,8 +135,6 @@ cp .env.example .env
 | `GROQ_LLM_MODEL` | No | Groq chat model; defaults to `llama-3.1-8b-instant` |
 | `GROQ_STT_MODEL` | No | Groq transcription model; defaults to `whisper-large-v3-turbo` |
 | `GROQ_TRANSLATION_MODEL` | No | Groq audio translation model; defaults to `whisper-large-v3` |
-| `SARVAM_API_KEY` | No | Optional Sarvam-first Hinglish translation; Groq remains the fallback |
-| `WHISPER_MODEL` | Local only | Optional local Whisper model; defaults to `small` |
 | `SUPABASE_URL` | Yes | Supabase project URL used by authentication |
 | `SUPABASE_ANON_KEY` | Yes | Public Supabase key used for sign-in and sign-up |
 | `WORKER_API_URL` | For Meet bot | HTTPS URL of the Oracle worker |
@@ -167,7 +163,7 @@ videosage-rag-assistant/
 │   ├── audio_capture.py      # PulseAudio and FFmpeg recording
 │   └── supabase_store.py     # User-scoped meeting persistence
 ├── core/
-│   ├── transcriber.py        # Whisper and Sarvam transcription
+│   ├── transcriber.py        # Groq Whisper transcription and translation
 │   ├── summarizer.py         # Map-reduce summaries and title generation
 │   ├── extractor.py          # Decisions, questions, and action items
 │   ├── vector_store.py       # Chroma indexing and retrieval
@@ -178,7 +174,6 @@ videosage-rag-assistant/
 ├── deploy/oracle/            # Xvfb/PulseAudio/Caddy/systemd provisioning
 ├── docs/ORACLE_DEPLOYMENT.md # Complete free-tier deployment runbook
 ├── requirements.txt
-├── requirements-local.txt   # Optional offline Whisper dependencies
 ├── requirements-worker.txt  # Oracle-only service dependencies
 ├── packages.txt              # Streamlit Community Cloud system package
 └── .streamlit/config.toml
@@ -198,7 +193,7 @@ videosage-rag-assistant/
 - **Chunked processing:** long media is split before transcription and summarization.
 - **Grounded answers:** questions retrieve relevant transcript segments before generation.
 - **Lean cloud runtime:** Chroma's CPU ONNX MiniLM path avoids multi-gigabyte PyTorch/CUDA installs on Streamlit Community Cloud.
-- **Transcription resilience:** the slow path uses hosted Groq Whisper; local Whisper remains an opt-in development fallback.
+- **Lean transcription:** the slow path uses hosted Groq Whisper so neither cloud service loads a local speech model.
 - **Focused interface:** the UI prioritizes source input, processing state, structured results, and conversation without unnecessary dashboard clutter.
 
 ## Deployment
@@ -217,14 +212,14 @@ configuration procedure is in [the Oracle deployment runbook](docs/ORACLE_DEPLOY
 The service-by-service quota and no-overage strategy is documented in the
 [zero-cost operating model](docs/ZERO_COST_ARCHITECTURE.md).
 
-This architecture uses [Streamlit Community Cloud](https://docs.streamlit.io/deploy/streamlit-community-cloud), the [Oracle Ampere A1 Always Free allowance](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier.htm), and [Supabase Free](https://supabase.com/pricing). Free tiers have resource limits and no production uptime SLA.
+This architecture uses [Streamlit Community Cloud](https://docs.streamlit.io/deploy/streamlit-community-cloud), an [Oracle Always Free compute shape](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier.htm), and [Supabase Free](https://supabase.com/pricing). The deployed worker uses E2 Micro because Ampere A1 capacity was unavailable in Hyderabad; it is configured for one meeting at a time with swap-backed memory. Free tiers have resource limits and no production uptime SLA.
 
 ## Current deployment status
 
 - Streamlit frontend: deployed.
 - Supabase Auth, PostgreSQL schema, RLS, history, and quotas: deployed.
 - YouTube and upload analysis: available after sign-in.
-- Oracle Google Meet worker: code and deployment automation are ready; the live VM endpoint still needs to be connected.
+- Oracle Google Meet worker: Always Free E2 Micro VM is provisioned in Hyderabad; HTTPS and Streamlit webhook connection are being finalized.
 
 ## Roadmap
 

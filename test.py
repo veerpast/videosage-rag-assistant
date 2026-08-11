@@ -1,15 +1,18 @@
 from dotenv import load_dotenv
-load_dotenv()   # MUST be before any core/ imports
 
-from utils.audio_processor import process_input
+load_dotenv()  # MUST be before any core/ imports
+
+from core.extractor import (
+    extract_action_items,
+    extract_key_decisions,
+    extract_questions,
+)
+from core.summarizer import generate_title, summarize
 from core.transcriber import transcribe_all
-from core.summarizer import summarize, generate_title
-from core.extractor import extract_action_items, extract_key_decisions, extract_questions
-
+from utils.audio_processor import process_input
 
 source = "https://www.youtube.com/watch?v=_Q-e_nczWqM&t=223s"
-language = "english"   # "english" → Whisper, "hinglish" → Sarvam
-
+language = "english"  # "english" → transcription, "hinglish" → translation
 
 
 chunks = process_input(source)
@@ -31,7 +34,6 @@ print("=" * 60)
 print("\n📋 SUMMARY")
 print("-" * 60)
 print(summary)
-
 
 
 action_items = extract_action_items(transcript)

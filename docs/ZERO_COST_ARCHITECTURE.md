@@ -7,7 +7,7 @@ the application does not switch to a billable provider.
 | Component | Free service | Guardrail |
 |---|---|---|
 | Public frontend | Streamlit Community Cloud | Heavy browser/audio work stays on Oracle |
-| Bot worker | Oracle Ampere A1 Always Free | One Chromium meeting at a time |
+| Bot worker | Oracle E2 Micro Always Free | One Chromium meeting at a time; 4 GB swap |
 | Database and auth | Supabase Free | RLS, on-demand transcript reads, daily per-user quotas |
 | LLM and speech API | Groq Free | Free-plan rate limits; no paid fallback |
 | HTTPS | Caddy + public CA certificate | Automatic renewal |
@@ -15,8 +15,10 @@ the application does not switch to a billable provider.
 
 ## Current free-tier boundaries
 
-- Oracle documents an Always Free tenancy allowance totaling up to 4 Ampere A1
-  OCPUs and 24 GB RAM across Arm instances.
+- The live worker uses one `VM.Standard.E2.1.Micro` instance labeled Always
+  Free-eligible in the tenancy's Hyderabad home region. Ampere A1 is preferred
+  when free capacity is available, but the application never falls back to a
+  paid shape.
 - Supabase Free currently includes a 500 MB database and 5 GB uncached egress;
   inactive projects may pause. Transcript payloads are fetched only on demand.
 - Streamlit Community Cloud is free and hibernates inactive apps. A visitor can

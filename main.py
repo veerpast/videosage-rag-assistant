@@ -7,7 +7,6 @@ from core.extractor import (
     extract_key_decisions,
     extract_questions,
 )
-from core.rag_engine import ask_question, build_rag_chain
 from core.summarizer import generate_title, summarize
 from core.transcriber import transcribe_all
 from utils.audio_processor import process_input
@@ -41,6 +40,8 @@ def run_pipeline(
     rag_chain = None
     if build_chat:
         try:
+            from core.rag_engine import build_rag_chain
+
             rag_chain = build_rag_chain(transcript)
         except Exception as exc:  # noqa: BLE001 - optional CLI RAG boundary
             print(f"⚠️  Warning: failed to build RAG chain: {exc}")
@@ -80,6 +81,8 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     rag_chain = result["rag_chain"]
+    from core.rag_engine import ask_question
+
     while True:
         question = input("You: ").strip()
         if question.lower() in ["exit", "quit", "q"]:

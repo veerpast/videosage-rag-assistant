@@ -1,7 +1,0 @@
--r requirements.txt
-
-# Optional offline transcription fallback for local development. Production
-# uses Groq Whisper and keeps these heavyweight packages out of Streamlit.
-openai-whisper>=20231117
-torch>=2.2.0
-torchaudio>=2.2.0

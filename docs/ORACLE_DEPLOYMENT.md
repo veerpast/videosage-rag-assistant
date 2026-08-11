@@ -17,11 +17,14 @@ The service-role key belongs only on the Oracle VM. The table has RLS enabled;
 authenticated users can select only rows whose `user_id` matches their JWT.
 All writes still pass through the authenticated worker API.
 
-## 2. Prepare the Oracle Ampere VM
+## 2. Prepare the Oracle Always Free VM
 
-Use an Ubuntu Ampere A1 instance with up to the Always Free tenancy total of
-4 OCPUs and 24 GB RAM. Assign a reserved public IPv4 address so the worker URL
-does not change.
+Prefer an Ubuntu Ampere A1 instance within the tenancy's current Always Free
+allowance. Ampere capacity is often unavailable, so the deployed showcase uses
+the Always Free `VM.Standard.E2.1.Micro` fallback (1 OCPU, 1 GB RAM) with a
+4 GB swap file and one meeting at a time. Never select a shape unless Oracle
+labels it **Always Free-eligible**. An ephemeral public IPv4 address is free;
+replace the Streamlit worker URL if that address changes after recreation.
 
 In the Oracle VCN security list or network security group, allow:
 
@@ -59,8 +62,9 @@ sudo bash deploy/oracle/setup_oracle.sh <PUBLIC_IP_WITH_DASHES>.sslip.io
 ```
 
 The script installs Xvfb, PulseAudio, FFmpeg, Caddy, Python dependencies, and
-the ARM-compatible Playwright Chromium build. It also creates a hardened
-systemd service and opens only ports 80 and 443 in the VM firewall.
+the architecture-compatible Playwright Chromium build. It creates swap on
+low-memory instances, enables unattended security updates and fail2ban, creates
+a hardened systemd service, and opens only ports 80 and 443 in the VM firewall.
 
 ## 4. Configure worker secrets
 
@@ -104,8 +108,8 @@ SUPABASE_ANON_KEY = "your_public_anon_key"
 ```
 
 The anon key is designed for client use; RLS protects the underlying data. Do
-not place the service-role key in Streamlit. Keep the existing Groq and optional
-Sarvam secrets, then reboot the Streamlit app.
+not place the service-role key in Streamlit. Groq is the only LLM and speech
+provider, and no local speech model is required. Then reboot the Streamlit app.
 The **Send bot to meeting** control and autonomous meeting history will become
 active automatically.
 

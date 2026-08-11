@@ -224,8 +224,8 @@ async def _consume_jobs(app: FastAPI) -> None:
 def _process_job(
     settings: WorkerSettings, store: MeetingStore, job: MeetingJob
 ) -> None:
-    # Importing the AI pipeline loads Torch and Whisper modules. Keep that cost
-    # out of API startup and pay it only when a meeting is ready to process.
+    # Keep the analysis pipeline out of API startup. The small free-tier worker
+    # only pays this memory cost after a meeting recording is ready.
     from main import run_pipeline
 
     recording_path = settings.recordings_dir / f"{job.id}.wav"

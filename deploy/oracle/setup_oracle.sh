@@ -21,8 +21,23 @@ REPO_URL=https://github.com/veerpast/videosage-rag-assistant.git
 
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    caddy curl ffmpeg git iptables-persistent pulseaudio pulseaudio-utils \
-    python3 python3-pip python3-venv xvfb
+    caddy curl fail2ban ffmpeg git iptables-persistent pulseaudio \
+    pulseaudio-utils python3 python3-pip python3-venv unattended-upgrades xvfb
+
+# E2.1.Micro has 1 GB RAM. A persistent swap file prevents Chromium, FFmpeg,
+# and the Groq analysis client from being killed during a single demo session.
+if ! swapon --show=NAME --noheadings | grep -q .; then
+    fallocate -l 4G /swapfile
+    chmod 0600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    printf '/swapfile none swap sw 0 0\n' >>/etc/fstab
+fi
+cat >/etc/sysctl.d/99-videosage-memory.conf <<'EOF'
+vm.swappiness=20
+vm.vfs_cache_pressure=100
+EOF
+sysctl --system >/dev/null
 
 if [[ ! -d "$APP_DIR/.git" ]]; then
     git clone "$REPO_URL" "$APP_DIR"
@@ -58,7 +73,7 @@ iptables -C INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || \
 netfilter-persistent save
 
 systemctl daemon-reload
-systemctl enable caddy videosage-worker
+systemctl enable caddy fail2ban unattended-upgrades videosage-worker
 systemctl restart caddy
 
 echo "Edit /etc/videosage/worker.env, then run:"
