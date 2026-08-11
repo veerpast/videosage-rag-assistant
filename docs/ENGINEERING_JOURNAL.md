@@ -104,6 +104,11 @@ path and falls back to the accessible People/Participants count. Regression test
 cover both one-participant and two-participant states before the grace timer can
 end a recording.
 
+During live recovery testing, Google exposed another state: a persistent account
+can reopen directly inside its active call without rendering a Join button. The
+join routine now treats a visible Leave-call control as proof of admission, and
+the slow free VM receives a two-minute pre-join allowance before failing.
+
 ## Supabase optional-row SDK behavior
 
 **Problem:** `supabase-py` returned `None` when `maybe_single()` found no row, but

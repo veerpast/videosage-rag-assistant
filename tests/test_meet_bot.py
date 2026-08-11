@@ -1,10 +1,23 @@
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from worker.meet_bot import GoogleMeetBot
 
 
 class MeetEndMarkerTests(unittest.TestCase):
+    @patch.object(GoogleMeetBot, "_turn_off_local_media")
+    @patch.object(GoogleMeetBot, "_dismiss_optional_dialogs")
+    def test_join_accepts_session_already_inside_call(self, dismiss, turn_off):
+        bot = GoogleMeetBot.__new__(GoogleMeetBot)
+        page = MagicMock()
+        page.get_by_role.return_value.first.is_visible.return_value = True
+
+        bot._join(page)
+
+        dismiss.assert_called_once_with(page)
+        turn_off.assert_called_once_with(page)
+        page.locator.assert_not_called()
+
     def test_detects_current_google_meet_rejection_copy(self):
         page = MagicMock()
 

@@ -53,6 +53,15 @@ class GoogleMeetBot:
         self._dismiss_optional_dialogs(page)
         self._turn_off_local_media(page)
 
+        leave_button = page.get_by_role(
+            "button", name=re.compile("leave call", re.IGNORECASE)
+        ).first
+        try:
+            if leave_button.is_visible(timeout=2_000):
+                return
+        except PlaywrightTimeoutError:
+            pass
+
         name_input = page.locator('input[placeholder*="name" i]').first
         try:
             name_input.wait_for(state="visible", timeout=20_000)
@@ -66,7 +75,7 @@ class GoogleMeetBot:
             name=re.compile(r"^(ask to join|join now)$", re.IGNORECASE),
         ).first
         try:
-            join_button.wait_for(state="visible", timeout=30_000)
+            join_button.wait_for(state="visible", timeout=120_000)
             join_button.click()
         except PlaywrightTimeoutError as exc:
             raise RuntimeError(
@@ -146,7 +155,7 @@ class GoogleMeetBot:
                 continue
         people_button = page.get_by_role(
             "button",
-            name=re.compile(r"(people|participants|show everyone)", re.IGNORECASE),
+            name=re.compile(r"(people|participants?|show everyone)", re.IGNORECASE),
         ).first
         try:
             if people_button.is_visible(timeout=500):
