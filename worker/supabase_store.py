@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
+from json import JSONDecodeError
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from supabase import Client, create_client
 from worker.config import WorkerSettings
@@ -11,6 +15,8 @@ from worker.config import WorkerSettings
 
 class MeetingStore:
     def __init__(self, settings: WorkerSettings):
+        self.supabase_url = settings.supabase_url.rstrip("/")
+        self.supabase_api_key = settings.supabase_service_role_key
         self.client: Client = create_client(
             settings.supabase_url,
             settings.supabase_service_role_key,
@@ -67,10 +73,28 @@ class MeetingStore:
         return result.data
 
     def verify_user(self, access_token: str) -> str:
-        response = self.client.auth.get_user(access_token)
-        if not response.user:
+        # Never validate an end-user token through the service-role client.
+        # supabase-py's auth client can replace the shared Authorization header,
+        # which would make concurrent background writes run with a user's JWT.
+        # A stateless Auth request keeps user verification and privileged database
+        # access on separate credential paths.
+        request = Request(
+            f"{self.supabase_url}/auth/v1/user",
+            headers={
+                "apikey": self.supabase_api_key,
+                "Authorization": f"Bearer {access_token}",
+            },
+        )
+        try:
+            with urlopen(request, timeout=10) as response:
+                payload = json.load(response)
+        except (HTTPError, URLError, TimeoutError, JSONDecodeError) as exc:
+            raise ValueError("Invalid user session") from exc
+
+        user_id = payload.get("id") if isinstance(payload, dict) else None
+        if not user_id:
             raise ValueError("Invalid user session")
-        return str(response.user.id)
+        return str(user_id)
 
     def list_active(self) -> list[dict[str, Any]]:
         result = (

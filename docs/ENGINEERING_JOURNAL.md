@@ -118,6 +118,21 @@ meeting submission therefore produced an HTTP 500.
 **Resolution:** The adapter treats a `None` response as an absent optional value.
 A regression test protects idempotent first submissions.
 
+## Shared Supabase auth state corrupting background writes
+
+**Problem:** The worker originally used one `supabase-py` client for both
+service-role database operations and end-user JWT validation. During a live
+meeting, authenticated dashboard polling could replace that client's shared
+Authorization state. Audio capture and Groq transcription completed, but the
+final result update reached PostgREST with the wrong JWT and failed with
+`PGRST303: JWT issued at future`.
+
+**Resolution:** User verification now makes a stateless request to Supabase Auth,
+while the long-lived database client remains service-role-only. This separates
+the trust boundaries and removes mutable authentication state from concurrent
+job writes. A regression test proves that validation never calls or mutates the
+database client's auth session.
+
 ## Privacy on an operator-administered free stack
 
 **Problem:** RLS prevents cross-user access but cannot truthfully make the
