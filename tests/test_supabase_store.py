@@ -56,7 +56,9 @@ class MeetingStoreTests(unittest.TestCase):
         self.store.client.auth.get_user.assert_not_called()
         request = mock_urlopen.call_args.args[0]
         self.assertEqual(request.full_url, "https://example.supabase.co/auth/v1/user")
-        self.assertEqual(request.get_header("Authorization"), "Bearer user-access-token")
+        self.assertEqual(
+            request.get_header("Authorization"), "Bearer user-access-token"
+        )
 
 
 if __name__ == "__main__":
