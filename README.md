@@ -208,6 +208,7 @@ videosage-rag-assistant/
 ├── docs/ORACLE_DEPLOYMENT.md # Complete free-tier deployment runbook
 ├── docs/SYSTEM_ARCHITECTURE.md # Detailed trust boundaries and lifecycle
 ├── docs/DEMO_AND_SOCIAL_GUIDE.md # YouTube, LinkedIn, and X walkthrough scripts
+├── docs/USER_AND_OPERATOR_GUIDE.md # Product usage and safe admin operations
 ├── requirements.txt
 ├── requirements-worker.txt  # Oracle-only service dependencies
 ├── packages.txt              # Streamlit Community Cloud system package
