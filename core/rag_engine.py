@@ -1,11 +1,14 @@
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
-from core.vector_store import build_vector_store, load_vector_store, get_retriever
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+
 from core.llm_provider import get_llm
+from core.vector_store import build_vector_store, get_retriever
+
 
 def format_docs(docs):
     return "\n\n".join([doc.page_content for doc in docs])
+
 
 RAG_PROMPT_TEMPLATE = """You are an expert meeting assistant. Answer the user's question based ONLY on the meeting transcript context provided below.
 
@@ -55,14 +58,18 @@ Context from meeting transcript:
 
     llm = get_llm(temperature=0.3)
     rag_chain = (
-        {"context": retriever | RunnableLambda(format_docs),
-         "question": RunnablePassthrough()
-         }
-        | prompt | llm | StrOutputParser()
+        {
+            "context": retriever | RunnableLambda(format_docs),
+            "question": RunnablePassthrough(),
+        }
+        | prompt
+        | llm
+        | StrOutputParser()
     )
     return RAGChainWrapper(retriever, chain=rag_chain)
 
-def ask_question(rag_chain, question:str) -> str:
+
+def ask_question(rag_chain, question: str) -> str:
     print(f"Question : {question}")
     answer = rag_chain.invoke(question)
     print(f"answer :{answer}")

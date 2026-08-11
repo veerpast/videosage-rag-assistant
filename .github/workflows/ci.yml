@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install focused test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            "fastapi>=0.115,<1" \
+            "playwright>=1.48,<2" \
+            "supabase>=2.10,<3" \
+            "curl-cffi>=0.11,<0.16" \
+            pydub python-dotenv requests "ruff>=0.12,<1" youtube-transcript-api yt-dlp
+      - name: Lint and format check
+        run: |
+          ruff check app.py main.py core services worker utils tests
+          ruff format --check app.py main.py core services worker utils tests
+      - name: Compile Python
+        run: python -m compileall -q app.py main.py core services worker utils tests
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate shell scripts
+        run: bash -n deploy/oracle/setup_oracle.sh deploy/oracle/start_worker.sh

@@ -1,24 +1,31 @@
-#Actionableitems , decision , questions 
+# Actionableitems , decision , questions
 
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+
 from core.llm_provider import get_llm
 
 
-
-def build_chain(system_prompt : str):
+def build_chain(system_prompt: str):
     llm = get_llm(temperature=0.2)
     return (
-        RunnablePassthrough() | RunnableLambda(lambda x : {"text" : x}) |ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human","{text}"),
-    ]) | llm |StrOutputParser()
+        RunnablePassthrough()
+        | RunnableLambda(lambda x: {"text": x})
+        | ChatPromptTemplate.from_messages(
+            [
+                ("system", system_prompt),
+                ("human", "{text}"),
+            ]
+        )
+        | llm
+        | StrOutputParser()
     )
 
-def extract_action_items(transcript:str)->str:
+
+def extract_action_items(transcript: str) -> str:
     chain = build_chain(
-         "You are an expert meeting analyst. From the meeting transcript, "
+        "You are an expert meeting analyst. From the meeting transcript, "
         "extract all action items. For each provide:\n"
         "- Task description\n"
         "- Owner (who is responsible)\n"

@@ -1,14 +1,23 @@
 from dotenv import load_dotenv
 
-load_dotenv() # must run before modules read provider environment variables
+load_dotenv()  # must run before modules read provider environment variables
 
-from utils.audio_processor import process_input
+from core.extractor import (
+    extract_action_items,
+    extract_key_decisions,
+    extract_questions,
+)
+from core.rag_engine import ask_question, build_rag_chain
+from core.summarizer import generate_title, summarize
 from core.transcriber import transcribe_all
-from core.summarizer import summarize, generate_title
-from core.extractor import extract_action_items, extract_key_decisions, extract_questions
-from core.rag_engine import build_rag_chain, ask_question
+from utils.audio_processor import process_input
 
-def run_pipeline(source :str, language :str = "english") -> dict:
+
+def run_pipeline(
+    source: str,
+    language: str = "english",
+    build_chat: bool = True,
+) -> dict:
     print("starting VideoSage")
 
     res = process_input(source)
@@ -17,7 +26,7 @@ def run_pipeline(source :str, language :str = "english") -> dict:
         transcript = res
     else:
         transcript = transcribe_all(res, language)
-        
+
     print(f"raw transcription (first 300 characters ) {transcript[:300]}")
 
     title = generate_title(transcript)
@@ -28,12 +37,13 @@ def run_pipeline(source :str, language :str = "english") -> dict:
 
     decisions = extract_key_decisions(transcript)
     questions = extract_questions(transcript)
-    
-    try:
-        rag_chain = build_rag_chain(transcript)
-    except Exception as exc:
-        print(f"⚠️  Warning: failed to build RAG chain: {exc}")
-        rag_chain = None
+
+    rag_chain = None
+    if build_chat:
+        try:
+            rag_chain = build_rag_chain(transcript)
+        except Exception as exc:  # noqa: BLE001 - optional CLI RAG boundary
+            print(f"⚠️  Warning: failed to build RAG chain: {exc}")
 
     return {
         "title": title,
@@ -44,6 +54,7 @@ def run_pipeline(source :str, language :str = "english") -> dict:
         "open_questions": questions,
         "rag_chain": rag_chain,
     }
+
 
 if __name__ == "__main__":
     # CLI entry point
@@ -62,8 +73,10 @@ if __name__ == "__main__":
     # Phase 2 — Chat with your meeting via RAG
     print("\n💬 Chat with your meeting (type 'exit' to quit)\n")
     if result["rag_chain"] is None:
-        print("\n⚠️  RAG chat is unavailable because the retrieval chain failed to initialize.")
-        print("Please configure GROQ_API_KEY or MISTRAL_API_KEY and restart the application.")
+        print(
+            "\n⚠️  RAG chat is unavailable because the retrieval chain failed to initialize."
+        )
+        print("Please configure GROQ_API_KEY and restart the application.")
         raise SystemExit(0)
 
     rag_chain = result["rag_chain"]
@@ -77,6 +90,6 @@ if __name__ == "__main__":
         try:
             answer = ask_question(rag_chain, question)
             print(f"\n🤖 Assistant: {answer}\n")
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - interactive CLI boundary
             print(f"⚠️  Error answering question: {exc}")
             break
