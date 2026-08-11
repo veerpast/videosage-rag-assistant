@@ -24,6 +24,8 @@ Important information is often buried inside hour-long meetings, interviews, lec
 
 The project combines browser automation, virtual audio capture, multilingual transcription, LLM-based information extraction, private vector search, and a Streamlit frontend across a two-service architecture.
 
+> **Engineering story:** Read [Building VideoSage: The Problems Behind the Demo](docs/CHALLENGES_AND_SOLUTIONS.md) for the real failures, rejected approaches, production fixes, and lessons behind the finished application.
+
 ## What it does
 
 - Accepts a YouTube URL or a drag-and-drop audio/video upload.
@@ -207,7 +209,8 @@ videosage-rag-assistant/
 ├── deploy/oracle/            # Xvfb/PulseAudio/Caddy/systemd provisioning
 ├── docs/ORACLE_DEPLOYMENT.md # Complete free-tier deployment runbook
 ├── docs/SYSTEM_ARCHITECTURE.md # Detailed trust boundaries and lifecycle
-├── docs/DEMO_AND_SOCIAL_GUIDE.md # YouTube, LinkedIn, and X walkthrough scripts
+├── docs/CHALLENGES_AND_SOLUTIONS.md # Showcase-ready engineering journey
+├── docs/ENGINEERING_JOURNAL.md # Lower-level verified incident notes
 ├── docs/USER_AND_OPERATOR_GUIDE.md # Product usage and safe admin operations
 ├── requirements.txt
 ├── requirements-worker.txt  # Oracle-only service dependencies
