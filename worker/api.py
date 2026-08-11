@@ -28,6 +28,7 @@ class MeetingRequest(BaseModel):
     meeting_url: str = Field(min_length=20, max_length=500)
     language: str = "english"
     consent_confirmed: bool
+    retention_days: int = Field(default=7, ge=1, le=30)
 
     @field_validator("meeting_url")
     @classmethod
@@ -72,18 +73,18 @@ async def lifespan(app: FastAPI):
     app.state.settings = settings
     app.state.store = MeetingStore(settings)
     app.state.queue = asyncio.Queue(maxsize=100)
+    await asyncio.to_thread(app.state.store.purge_expired)
     for meeting in await asyncio.to_thread(app.state.store.list_active):
         await asyncio.to_thread(app.state.store.mark_queued, meeting["id"])
         app.state.queue.put_nowait(
             MeetingJob(meeting["id"], meeting["meeting_url"], meeting["language"])
         )
     consumer = asyncio.create_task(_consume_jobs(app))
+    purger = asyncio.create_task(_purge_expired_jobs(app))
     yield
     consumer.cancel()
-    try:
-        await consumer
-    except asyncio.CancelledError:
-        pass
+    purger.cancel()
+    await asyncio.gather(consumer, purger, return_exceptions=True)
 
 
 app = FastAPI(
@@ -165,6 +166,7 @@ async def enqueue_meeting(
         payload.meeting_url,
         payload.language,
         request.app.state.settings.bot_name,
+        payload.retention_days,
     )
     try:
         request.app.state.queue.put_nowait(
@@ -208,6 +210,28 @@ async def meeting_detail(
     return meeting
 
 
+@app.delete(
+    "/v1/meetings/{meeting_id}",
+    dependencies=[Depends(authorize)],
+)
+async def delete_meeting(
+    meeting_id: uuid.UUID,
+    request: Request,
+    user_id: str = Depends(authenticated_user),
+) -> dict[str, bool]:
+    store: MeetingStore = request.app.state.store
+    meeting = await asyncio.to_thread(store.get, str(meeting_id), user_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    if meeting["status"] in {"queued", "running"}:
+        raise HTTPException(
+            status_code=409,
+            detail="Wait for the active meeting to finish before deleting it.",
+        )
+    await asyncio.to_thread(store.delete, str(meeting_id), user_id)
+    return {"deleted": True}
+
+
 async def _consume_jobs(app: FastAPI) -> None:
     while True:
         job: MeetingJob = await app.state.queue.get()
@@ -219,6 +243,15 @@ async def _consume_jobs(app: FastAPI) -> None:
             LOGGER.exception("Unhandled worker error for meeting %s", job.id)
         finally:
             app.state.queue.task_done()
+
+
+async def _purge_expired_jobs(app: FastAPI) -> None:
+    while True:
+        await asyncio.sleep(app.state.settings.purge_interval_seconds)
+        try:
+            await asyncio.to_thread(app.state.store.purge_expired)
+        except Exception:
+            LOGGER.exception("Automatic meeting-retention cleanup failed")
 
 
 def _process_job(

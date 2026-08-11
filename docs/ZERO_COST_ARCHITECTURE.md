@@ -8,7 +8,7 @@ the application does not switch to a billable provider.
 |---|---|---|
 | Public frontend | Streamlit Community Cloud | Heavy browser/audio work stays on Oracle |
 | Bot worker | Oracle E2 Micro Always Free | One Chromium meeting at a time; 4 GB swap |
-| Database and auth | Supabase Free | RLS, on-demand transcript reads, daily per-user quotas |
+| Database and auth | Supabase Free | RLS, on-demand transcript reads, quotas, automatic retention cleanup |
 | LLM and speech API | Groq Free | Free-plan rate limits; no paid fallback |
 | HTTPS | Caddy + public CA certificate | Automatic renewal |
 | DNS | `<PUBLIC_IP>.sslip.io` | No purchased domain required |

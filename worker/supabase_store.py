@@ -23,7 +23,9 @@ class MeetingStore:
         meeting_url: str,
         language: str,
         bot_name: str,
+        retention_days: int,
     ) -> dict[str, Any]:
+        expires_at = datetime.now(timezone.utc) + timedelta(days=retention_days)
         payload = {
             "id": meeting_id,
             "user_id": user_id,
@@ -32,6 +34,8 @@ class MeetingStore:
             "bot_name": bot_name,
             "status": "queued",
             "consent_confirmed_at": _utc_now(),
+            "retention_days": retention_days,
+            "expires_at": expires_at.isoformat(),
         }
         result = self.client.table("meeting_runs").insert(payload).execute()
         return result.data[0]
@@ -50,6 +54,7 @@ class MeetingStore:
             "id,title,status,language,bot_name,summary,action_items,"
             "key_decisions,open_questions,error_message,"
             "created_at,started_at,ended_at"
+            ",expires_at,retention_days"
         )
         result = (
             self.client.table("meeting_runs")
@@ -122,6 +127,7 @@ class MeetingStore:
                 "action_items": result["action_items"],
                 "key_decisions": result["key_decisions"],
                 "open_questions": result["open_questions"],
+                "meeting_url": None,
                 "ended_at": _utc_now(),
                 "error_message": None,
             },
@@ -133,8 +139,27 @@ class MeetingStore:
             {
                 "status": "failed",
                 "error_message": error[:4000],
+                "meeting_url": None,
                 "ended_at": _utc_now(),
             },
+        )
+
+    def delete(self, meeting_id: str, user_id: str) -> None:
+        (
+            self.client.table("meeting_runs")
+            .delete()
+            .eq("id", meeting_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+    def purge_expired(self) -> None:
+        (
+            self.client.table("meeting_runs")
+            .delete()
+            .in_("status", ["completed", "failed"])
+            .lt("expires_at", _utc_now())
+            .execute()
         )
 
     def _update(self, meeting_id: str, payload: dict[str, Any]) -> None:

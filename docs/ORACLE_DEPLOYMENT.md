@@ -7,8 +7,8 @@ joins and records the meeting; Supabase stores the finished analysis.
 ## 1. Create the Supabase database
 
 1. Create a Supabase Free project.
-2. Open **SQL Editor** and run
-   [`supabase/migrations/001_meeting_runs.sql`](../supabase/migrations/001_meeting_runs.sql).
+2. Open **SQL Editor** and run every file in `supabase/migrations/` in filename
+   order. This includes the base schema and privacy-retention controls.
 3. In **Authentication → Providers → Email**, enable email/password sign-in.
 4. Copy the project URL, anon key, and `service_role` key from
    **Project Settings → API**.
@@ -179,6 +179,8 @@ transcript load from Supabase.
 - Queued and interrupted jobs are recovered from Supabase after a VM restart.
 - Completed WAV files are deleted by default. Set `KEEP_RECORDINGS=true` only
   for debugging because Oracle boot-volume space is finite.
+- Completed meeting URLs are removed immediately. Results expire after the
+  user-selected 1, 7, or 30 day window; the worker purges expired rows hourly.
 - Google Meet requires the persistent bot profile to remain signed in and may
   require organizer admission. Browser selector failures are recorded in the
   meeting's `failed` state.

@@ -62,6 +62,7 @@ def submit_meeting(
     user_token: str,
     language: str = "english",
     consent_confirmed: bool = False,
+    retention_days: int = 7,
 ) -> dict[str, Any]:
     return _request(
         "POST",
@@ -72,6 +73,7 @@ def submit_meeting(
             "meeting_url": meeting_url,
             "language": language,
             "consent_confirmed": consent_confirmed,
+            "retention_days": retention_days,
         },
     )
 
@@ -83,3 +85,7 @@ def list_meetings(user_token: str, limit: int = 20) -> list[dict[str, Any]]:
 
 def get_meeting(meeting_id: str, user_token: str) -> dict[str, Any]:
     return _request("GET", f"/v1/meetings/{meeting_id}", user_token)
+
+
+def delete_meeting(meeting_id: str, user_token: str) -> None:
+    _request("DELETE", f"/v1/meetings/{meeting_id}", user_token)

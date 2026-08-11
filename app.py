@@ -31,6 +31,7 @@ from services.auth_client import (
 )
 from services.worker_client import (
     WorkerClientError,
+    delete_meeting,
     get_meeting,
     list_meetings,
     submit_meeting,
@@ -503,7 +504,11 @@ if not st.session_state.auth_session:
 
     with auth_form, st.container(border=True):
         st.markdown("### Welcome to VideoSage")
-        st.caption("Sign in to keep every transcript and analysis private.")
+        st.caption("Sign in to access your account-scoped meeting workspace.")
+        st.markdown(
+            "[Read the privacy notice](https://github.com/veerpast/"
+            "videosage-rag-assistant/blob/main/PRIVACY.md)"
+        )
         sign_in_tab, sign_up_tab = st.tabs(["Sign in", "Create account"])
 
         with sign_in_tab:
@@ -528,8 +533,15 @@ if not st.session_state.auth_session:
                 signup_password = st.text_input(
                     "Password", type="password", key="signup-password"
                 )
+                signup_accept = st.checkbox(
+                    "I accept the privacy notice and will only process media "
+                    "with permission.",
+                    key="signup-privacy",
+                )
                 signup_submit = st.form_submit_button(
-                    "Create account", use_container_width=True
+                    "Create account",
+                    use_container_width=True,
+                    disabled=not signup_accept,
                 )
             if signup_submit:
                 if len(signup_password) < 8:
@@ -606,8 +618,19 @@ with st.sidebar:
         ["english", "hinglish"],
         key="meeting_language",
     )
+    retention_days = st.selectbox(
+        "Keep meeting results for",
+        [1, 7, 30],
+        index=1,
+        format_func=lambda days: f"{days} day" if days == 1 else f"{days} days",
+        help="Results are permanently deleted automatically after this period.",
+    )
     consent_confirmed = st.checkbox(
-        "I confirm participants have consented to this recording."
+        "I confirm all participants consent to recording and AI processing."
+    )
+    st.caption(
+        "Privacy: audio is deleted after processing; results are private to your "
+        "account and expire automatically. Use only non-confidential meetings."
     )
     send_bot_btn = st.button(
         "Send bot to meeting",
@@ -627,6 +650,7 @@ with st.sidebar:
                     user_token,
                     meeting_language,
                     consent_confirmed=True,
+                    retention_days=retention_days,
                 )
                 load_meeting_history.clear()
             except WorkerClientError as exc:
@@ -936,7 +960,8 @@ with history_header:
         unsafe_allow_html=True,
     )
     st.caption(
-        "Google Meet sessions processed by the Oracle worker and stored in Supabase."
+        "Private to your account. Audio is deleted after processing and saved results "
+        "expire automatically. The service operator and AI provider process meeting data."
     )
 with history_refresh:
     if st.button("Refresh", type="secondary", use_container_width=True):
@@ -964,6 +989,9 @@ if worker_is_configured():
         created = display_timestamp(meeting.get("created_at"))
         label = f"{status_icon.get(status_value, '•')} {title} · {status_value.title()} · {created}"
         with st.expander(label):
+            expiry = display_timestamp(meeting.get("expires_at"))
+            if expiry:
+                st.caption(f"Scheduled for permanent deletion: {expiry}")
             if status_value == "failed":
                 st.error(meeting.get("error_message") or "The meeting worker failed.")
             elif status_value != "completed":
@@ -1005,6 +1033,26 @@ if worker_is_configured():
                             )
                         except WorkerClientError as exc:
                             st.error(str(exc))
+            if status_value in {"completed", "failed"}:
+                confirm_delete = st.checkbox(
+                    "Confirm permanent deletion",
+                    key=f"confirm-delete-{meeting['id']}",
+                )
+                if st.button(
+                    "Delete meeting data",
+                    key=f"delete-meeting-{meeting['id']}",
+                    type="secondary",
+                    disabled=not confirm_delete,
+                    use_container_width=True,
+                ):
+                    try:
+                        delete_meeting(meeting["id"], user_token)
+                        load_meeting_history.clear()
+                        load_meeting_detail.clear()
+                        st.success("Meeting data was permanently deleted.")
+                        st.rerun()
+                    except WorkerClientError as exc:
+                        st.error(str(exc))
 else:
     st.info(
         "Set WORKER_API_URL and WORKER_API_TOKEN in Streamlit secrets to enable "

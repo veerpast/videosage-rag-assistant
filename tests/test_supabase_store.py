@@ -21,6 +21,25 @@ class MeetingStoreTests(unittest.TestCase):
 
         self.assertIsNone(result)
 
+    def test_completed_meeting_discards_join_url(self):
+        query = self.store.client.table.return_value.update.return_value
+        query.eq.return_value.execute.return_value = None
+
+        self.store.mark_completed(
+            "00000000-0000-0000-0000-000000000000",
+            {
+                "title": "Demo",
+                "transcript": "Transcript",
+                "summary": "Summary",
+                "action_items": "None",
+                "key_decisions": "None",
+                "open_questions": "None",
+            },
+        )
+
+        payload = self.store.client.table.return_value.update.call_args.args[0]
+        self.assertIsNone(payload["meeting_url"])
+
 
 if __name__ == "__main__":
     unittest.main()

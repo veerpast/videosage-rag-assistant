@@ -29,6 +29,7 @@ The project combines browser automation, virtual audio capture, multilingual tra
 - Accepts a YouTube URL or a drag-and-drop audio/video upload.
 - Sends an autonomous browser bot to a Google Meet URL through an authenticated webhook.
 - Stores private meeting history in Supabase with email/password authentication and PostgreSQL RLS.
+- Deletes raw recordings after processing, removes finished meeting URLs, and automatically expires saved results after 1, 7, or 30 days.
 - Downloads or converts media and splits long recordings into manageable chunks.
 - Transcribes English audio and translates Hinglish with Groq Whisper.
 - Generates a professional title and concise meeting summary.
@@ -187,6 +188,7 @@ videosage-rag-assistant/
 - **Two-layer worker security:** a service webhook token protects the Oracle API and a user JWT assigns each job to its owner.
 - **Persistent bot identity:** Google authentication lives only in a locked-down Oracle browser profile configured through an SSH-only noVNC tunnel.
 - **Consent enforcement:** the UI and worker API both require recording-consent confirmation, which is timestamped in PostgreSQL.
+- **Data minimization:** raw WAV files and finished Meet URLs are discarded; users can permanently delete results immediately or let the hourly retention worker expire them.
 - **Restart-safe queue:** queued and interrupted jobs are recovered from PostgreSQL when the worker restarts.
 - **Free-tier egress control:** history queries omit transcripts; full text is fetched only when a user requests it.
 - **Database-enforced usage limits:** atomic PostgreSQL functions cap daily analyses and RAG questions so browser refreshes cannot bypass free-tier protection.
@@ -206,7 +208,7 @@ private service token and the signed-in user's Supabase JWT.
 
 1. Deploy the repository's `app.py` on Streamlit Community Cloud.
 2. Add `GROQ_API_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in **App settings → Secrets**.
-3. Apply `supabase/migrations/001_meeting_runs.sql` to a Supabase Free project.
+3. Apply every SQL file in `supabase/migrations/` to a Supabase Free project in filename order.
 4. Deploy the Oracle worker using `docs/ORACLE_DEPLOYMENT.md`.
 5. Add `WORKER_API_URL` and `WORKER_API_TOKEN` to Streamlit Secrets.
 
@@ -221,6 +223,7 @@ This architecture uses [Streamlit Community Cloud](https://docs.streamlit.io/dep
 
 - Streamlit frontend: deployed.
 - Supabase Auth, PostgreSQL schema, RLS, history, and quotas: deployed.
+- Privacy notice, user-controlled retention, permanent deletion, and automatic expiry: deployed.
 - YouTube and upload analysis: available after sign-in.
 - Oracle Google Meet worker: live on an Always Free E2 Micro VM in Hyderabad with Caddy HTTPS, systemd restart recovery, a 4 GB swap safety net, fail2ban, unattended security updates, and authenticated webhook access.
 

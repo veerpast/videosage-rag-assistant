@@ -26,6 +26,7 @@ class WorkerSettings:
     max_meeting_seconds: int
     empty_meeting_grace_seconds: int
     max_meetings_per_user_per_day: int
+    purge_interval_seconds: int
     keep_recordings: bool
 
     @classmethod
@@ -51,6 +52,7 @@ class WorkerSettings:
             max_meetings_per_user_per_day=int(
                 os.getenv("MAX_MEETINGS_PER_USER_PER_DAY", "3")
             ),
+            purge_interval_seconds=int(os.getenv("PURGE_INTERVAL_SECONDS", "3600")),
             keep_recordings=os.getenv("KEEP_RECORDINGS", "false").lower()
             in {"1", "true", "yes"},
         )

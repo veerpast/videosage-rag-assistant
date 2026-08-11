@@ -14,6 +14,9 @@ class FakeMeetingStore:
     def list_active(self):
         return []
 
+    def purge_expired(self):
+        return None
+
     def verify_user(self, token):
         if token != "valid-user-token":
             raise ValueError("invalid token")
@@ -21,6 +24,14 @@ class FakeMeetingStore:
 
     def list_recent(self, user_id, limit):
         return []
+
+    def get(self, meeting_id, user_id=None):
+        if meeting_id == "00000000-0000-0000-0000-000000000002":
+            return {"id": meeting_id, "user_id": user_id, "status": "completed"}
+        return None
+
+    def delete(self, meeting_id, user_id):
+        self.deleted = (meeting_id, user_id)
 
 
 class WorkerApiTests(unittest.TestCase):
@@ -85,6 +96,33 @@ class WorkerApiTests(unittest.TestCase):
             },
         )
         self.assertEqual(response.status_code, 422)
+
+    def test_retention_cannot_exceed_thirty_days(self):
+        response = self.client.post(
+            "/v1/meetings",
+            headers={
+                "Authorization": "Bearer service-token",
+                "X-User-Token": "valid-user-token",
+            },
+            json={
+                "meeting_url": "https://meet.google.com/abc-defg-hij",
+                "language": "english",
+                "consent_confirmed": True,
+                "retention_days": 31,
+            },
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_user_can_delete_own_completed_meeting(self):
+        response = self.client.delete(
+            "/v1/meetings/00000000-0000-0000-0000-000000000002",
+            headers={
+                "Authorization": "Bearer service-token",
+                "X-User-Token": "valid-user-token",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"deleted": True})
 
 
 if __name__ == "__main__":
