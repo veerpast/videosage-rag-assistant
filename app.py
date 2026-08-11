@@ -1,3 +1,4 @@
+import importlib
 import tempfile
 import time
 from datetime import datetime
@@ -17,6 +18,14 @@ from core.extractor import (
 from core.rag_engine import ask_question, build_rag_chain
 from core.summarizer import generate_title, summarize
 from core.transcriber import transcribe_all
+from services import auth_client, worker_client
+
+# Streamlit Community Cloud hot-reloads ``app.py`` without always restarting the
+# Python interpreter. Reload our small, stateless HTTP adapters so a deployment
+# cannot combine a new app module with stale cached service functions.
+importlib.reload(auth_client)
+importlib.reload(worker_client)
+
 from services.auth_client import (
     SupabaseAuthError,
     claim_analysis_slot,

@@ -133,6 +133,19 @@ the trust boundaries and removes mutable authentication state from concurrent
 job writes. A regression test proves that validation never calls or mutates the
 database client's auth session.
 
+## Streamlit hot reload mixing module revisions
+
+**Problem:** Streamlit Community Cloud updated `app.py` inside a long-lived
+Python process while retaining an older cached `services.worker_client` module.
+The deployed files were correct in Git, but the running process combined two
+revisions and failed at startup when the new UI imported `delete_meeting` from
+the stale module.
+
+**Resolution:** A clean Streamlit reboot restored a single-revision runtime.
+The app now explicitly reloads its small stateless HTTP adapters before binding
+their public functions, making hot deployments resilient to cached service
+modules. CI also asserts the complete Streamlit-to-worker client contract.
+
 ## Privacy on an operator-administered free stack
 
 **Problem:** RLS prevents cross-user access but cannot truthfully make the
