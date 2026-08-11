@@ -41,7 +41,9 @@ class MeetingStore:
         if user_id:
             query = query.eq("user_id", user_id)
         result = query.maybe_single().execute()
-        return result.data
+        # supabase-py returns ``None`` when maybe_single() finds no row.
+        # Treat that as the optional result it represents instead of raising.
+        return result.data if result is not None else None
 
     def list_recent(self, user_id: str, limit: int = 20) -> list[dict[str, Any]]:
         fields = (
