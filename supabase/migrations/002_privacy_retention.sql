@@ -10,6 +10,11 @@ update public.meeting_runs
 set expires_at = created_at + interval '7 days'
 where expires_at is null;
 
+-- Existing terminal jobs no longer need their join links either.
+update public.meeting_runs
+set meeting_url = null
+where status in ('completed', 'failed');
+
 alter table public.meeting_runs
     alter column expires_at set default (now() + interval '7 days'),
     alter column expires_at set not null;
