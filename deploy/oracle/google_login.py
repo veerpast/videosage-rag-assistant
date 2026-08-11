@@ -12,11 +12,10 @@ profile_dir = Path(
 profile_dir.mkdir(parents=True, exist_ok=True)
 
 chrome = os.getenv("CHROME_EXECUTABLE_PATH", "/usr/bin/google-chrome-stable")
-subprocess.run(
+process = subprocess.Popen(
     [
         chrome,
         f"--user-data-dir={profile_dir}",
-        "--no-sandbox",
         "--disable-dev-shm-usage",
         "--no-first-run",
         "--no-default-browser-check",
@@ -24,5 +23,13 @@ subprocess.run(
         "--window-size=1280,720",
         "https://accounts.google.com/",
     ],
-    check=False,
 )
+try:
+    process.wait()
+except KeyboardInterrupt:
+    process.terminate()
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
