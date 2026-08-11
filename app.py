@@ -42,6 +42,7 @@ from services.worker_client import (
     WorkerClientError,
     delete_meeting,
     get_meeting,
+    get_youtube_transcript,
     list_meetings,
     submit_meeting,
 )
@@ -735,7 +736,12 @@ if run_btn:
                 st.info("⚙️ Pipeline running — see sidebar for live status…")
 
             update_step("audio", "active")
-            res = process_input(source)
+            res = process_input(
+                source,
+                transcript_fallback=lambda video_id: get_youtube_transcript(
+                    video_id, user_token
+                ),
+            )
             update_step("audio", "done")
 
             update_step("transcript", "active")

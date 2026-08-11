@@ -20,6 +20,18 @@ pipeline. Captionless videos and uploaded media use a hardened `yt-dlp` fallback
 seconds to roughly 0.5 seconds (about a 98% reduction) while avoiding a video
 download entirely.
 
+**Production follow-up:** YouTube later began blocking caption-only requests from
+both Streamlit and Oracle datacenter IPs. Current yt-dlp releases additionally
+require JavaScript/Proof-of-Origin handling, which still cannot clear an
+IP-level `LOGIN_REQUIRED` response without cookies or a residential proxy.
+Account cookies were rejected as an unsafe fix because upstream documentation
+warns they may lead to a permanent account ban. The deployed fast path now uses
+an authenticated Oracle caption gateway and a validated, low-volume edge-caption
+fallback. Only an 11-character public video ID is forwarded; responses require
+transcript metadata, timestamps, a 5 MB ceiling, and a 15-second timeout.
+Captionless or blocked media receives a direct-upload instruction instead of raw
+yt-dlp internals.
+
 ## Upstream transcript API breaking change
 
 **Problem:** A library upgrade removed the older static

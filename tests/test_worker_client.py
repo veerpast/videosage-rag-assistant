@@ -9,6 +9,7 @@ class WorkerClientContractTests(unittest.TestCase):
             "WorkerClientError",
             "delete_meeting",
             "get_meeting",
+            "get_youtube_transcript",
             "is_configured",
             "list_meetings",
             "submit_meeting",

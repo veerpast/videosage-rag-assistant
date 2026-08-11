@@ -71,7 +71,10 @@ flowchart TD
     B -->|YouTube URL| C[Fast Path<br/>Fetch captions with youtube-transcript-api]
     C --> D{Transcript available?}
     D -->|Yes| G[Normalized transcript]
-    D -->|No| E
+    D -->|Cloud IP blocked| C2[Authenticated Oracle caption gateway]
+    C2 --> C3[Low-volume edge caption fallback]
+    C3 -->|Caption found| G
+    C3 -->|No caption| E
 
     B -->|Local media| E[Slow Path Fallback<br/>Download or convert media]
     E --> F[FFmpeg and pydub chunking<br/>Groq Whisper transcription]
@@ -93,7 +96,7 @@ flowchart TD
 | Worker API | FastAPI, Uvicorn, authenticated webhooks |
 | Browser automation | Playwright Chromium, Xvfb |
 | Virtual audio | PulseAudio `Virtual_Sink`, FFmpeg |
-| Media ingestion | youtube-transcript-api, curl-cffi, yt-dlp, FFmpeg, pydub |
+| Media ingestion | youtube-transcript-api, authenticated edge-caption fallback, curl-cffi, yt-dlp, FFmpeg, pydub |
 | Speech recognition | Groq Whisper transcription and translation |
 | LLM orchestration | LangChain, Groq |
 | Retrieval | ChromaDB, ONNX `all-MiniLM-L6-v2` embeddings |
@@ -149,6 +152,28 @@ streamlit run app.py
 
 Open `http://localhost:8501`, add a source in the sidebar, select the language, and choose **Analyse video**.
 
+## Using the live application
+
+Streamlit/GitHub ownership and VideoSage user accounts are separate. Owning the
+deployment does not automatically sign you into the product.
+
+1. Open the [live app](https://airag-video-meeting.streamlit.app/).
+2. Choose **Create account**, enter an email and a password of at least eight
+   characters, accept the privacy notice, and confirm the email if Supabase asks.
+3. Return to **Sign in** and use those VideoSage credentials.
+4. For an existing video, paste a captioned YouTube URL or upload an audio/video
+   file, choose the language, and select **Analyse video**.
+5. Review the generated title, executive summary, action items, decisions, open
+   questions, transcript, and grounded RAG chat.
+6. For a live Google Meet, paste the Meet URL, choose retention, confirm every
+   participant has consented, and select **Send bot to meeting**. Admit
+   **VideoSage Assistant** if Meet asks. Results appear in meeting history after
+   the meeting ends and processing completes.
+
+Every normal account sees only its own meeting records. Deployment ownership
+provides operational access to Streamlit, Oracle, and Supabase, but it is not a
+product-level shortcut around account-scoped access controls.
+
 ## Project structure
 
 ```text
@@ -192,7 +217,7 @@ videosage-rag-assistant/
 - **Restart-safe queue:** queued and interrupted jobs are recovered from PostgreSQL when the worker restarts.
 - **Free-tier egress control:** history queries omit transcripts; full text is fetched only when a user requests it.
 - **Database-enforced usage limits:** atomic PostgreSQL functions cap daily analyses and RAG questions so browser refreshes cannot bypass free-tier protection.
-- **Hybrid ingestion:** YouTube captions take the fast path; unavailable captions and local media use the audio-processing slow path.
+- **Hybrid ingestion:** YouTube captions first use direct extraction, then an authenticated Oracle gateway for a low-volume edge-caption fallback when cloud IPs are blocked. Captionless videos and local media use the audio-processing slow path; if YouTube blocks cloud audio too, the UI asks for a direct upload.
 - **Chunked processing:** long media is split before transcription and summarization.
 - **Grounded answers:** questions retrieve relevant transcript segments before generation.
 - **Lean cloud runtime:** Chroma's CPU ONNX MiniLM path avoids multi-gigabyte PyTorch/CUDA installs on Streamlit Community Cloud.
