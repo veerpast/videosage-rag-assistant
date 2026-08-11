@@ -8,15 +8,15 @@ browser; account tokens, cookies, and uploaded media are never included.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Literal
 
 import streamlit as st
 
-_VIDEO_ID_RE = re.compile(r"^[0-9A-Za-z_-]{11}$")
-_TIMESTAMP_RE = re.compile(r"(?m)^\[\d{1,2}:\d{2}(?::\d{2})?\]")
-_MAX_TRANSCRIPT_CHARS = 5_000_000
+from services.transcript_validation import (
+    VIDEO_ID_RE,
+    validated_browser_transcript,
+)
 
 _CAPTION_COMPONENT = st.components.v2.component(
     name="videosage_browser_captions",
@@ -63,25 +63,9 @@ class BrowserTranscript:
     transcript: str | None = None
 
 
-def _validated_transcript(payload: object, expected_video_id: str) -> str | None:
-    """Validate the untrusted component payload and extract its transcript body."""
-    if not isinstance(payload, dict) or payload.get("videoId") != expected_video_id:
-        return None
-    transcript = payload.get("transcript")
-    if (
-        not isinstance(transcript, str)
-        or not 40 <= len(transcript) <= _MAX_TRANSCRIPT_CHARS
-    ):
-        return None
-    if "# Transcript:" not in transcript:
-        return None
-    body_start = _TIMESTAMP_RE.search(transcript)
-    return transcript[body_start.start() :].strip() if body_start else None
-
-
 def get_browser_transcript(video_id: str, language: str = "en") -> BrowserTranscript:
     """Render the hidden caption fetcher and return its validated state."""
-    if not _VIDEO_ID_RE.fullmatch(video_id):
+    if not VIDEO_ID_RE.fullmatch(video_id):
         return BrowserTranscript(status="idle")
 
     attempt_key = f"browser_caption_attempt:{video_id}:{language}"
@@ -110,7 +94,7 @@ def get_browser_transcript(video_id: str, language: str = "en") -> BrowserTransc
 
     if not isinstance(payload, dict) or payload.get("videoId") != video_id:
         return BrowserTranscript(status="loading", video_id=video_id)
-    transcript = _validated_transcript(payload, video_id)
+    transcript = validated_browser_transcript(payload, video_id)
     if transcript:
         return BrowserTranscript(
             status="ready", video_id=video_id, transcript=transcript
@@ -120,7 +104,7 @@ def get_browser_transcript(video_id: str, language: str = "en") -> BrowserTransc
 
 def retry_browser_transcript(video_id: str, language: str = "en") -> None:
     """Start a fresh browser request after a transient caption failure."""
-    if not _VIDEO_ID_RE.fullmatch(video_id):
+    if not VIDEO_ID_RE.fullmatch(video_id):
         return
     attempt_key = f"browser_caption_attempt:{video_id}:{language}"
     st.session_state[attempt_key] = int(st.session_state.get(attempt_key, 0)) + 1
