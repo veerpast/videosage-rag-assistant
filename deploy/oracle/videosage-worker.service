@@ -11,7 +11,9 @@ WorkingDirectory=/opt/videosage
 EnvironmentFile=/etc/videosage/worker.env
 Environment=PYTHONUNBUFFERED=1
 Environment=DISPLAY=:99
-Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=XDG_RUNTIME_DIR=/run/videosage
+RuntimeDirectory=videosage
+RuntimeDirectoryMode=0700
 ExecStart=/opt/videosage/deploy/oracle/start_worker.sh
 Restart=always
 RestartSec=5
@@ -21,7 +23,7 @@ Nice=5
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
-ReadWritePaths=/opt/videosage /run/user/1000
+ReadWritePaths=/opt/videosage /run/videosage
 
 [Install]
 WantedBy=multi-user.target

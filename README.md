@@ -198,8 +198,10 @@ videosage-rag-assistant/
 
 ## Deployment
 
-The Streamlit frontend and Supabase backend are deployed. The autonomous Meet
-bot becomes available after the Oracle worker URL and token are added:
+The Streamlit frontend, Supabase backend, and autonomous Oracle worker are
+deployed. The worker is available through Caddy-managed HTTPS at
+`https://140-245-235-136.sslip.io`; its meeting endpoints require both the
+private service token and the signed-in user's Supabase JWT.
 
 1. Deploy the repository's `app.py` on Streamlit Community Cloud.
 2. Add `GROQ_API_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in **App settings → Secrets**.
@@ -219,7 +221,7 @@ This architecture uses [Streamlit Community Cloud](https://docs.streamlit.io/dep
 - Streamlit frontend: deployed.
 - Supabase Auth, PostgreSQL schema, RLS, history, and quotas: deployed.
 - YouTube and upload analysis: available after sign-in.
-- Oracle Google Meet worker: Always Free E2 Micro VM is provisioned in Hyderabad; HTTPS and Streamlit webhook connection are being finalized.
+- Oracle Google Meet worker: live on an Always Free E2 Micro VM in Hyderabad with Caddy HTTPS, systemd restart recovery, a 4 GB swap safety net, fail2ban, unattended security updates, and authenticated webhook access.
 
 ## Roadmap
 

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 export DISPLAY="${DISPLAY:-:99}"
-export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/videosage}"
 
 mkdir -p "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
