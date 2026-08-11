@@ -21,8 +21,9 @@ REPO_URL=https://github.com/veerpast/videosage-rag-assistant.git
 
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    caddy curl fail2ban ffmpeg git iptables-persistent pulseaudio \
-    pulseaudio-utils python3 python3-pip python3-venv unattended-upgrades xvfb
+    caddy curl fail2ban ffmpeg git iptables-persistent novnc pulseaudio \
+    pulseaudio-utils python3 python3-pip python3-venv unattended-upgrades \
+    websockify x11vnc xvfb
 
 # E2.1.Micro has 1 GB RAM. A persistent swap file prevents Chromium, FFmpeg,
 # and the Groq analysis client from being killed during a single demo session.
@@ -46,6 +47,7 @@ else
 fi
 
 chown -R ubuntu:ubuntu "$APP_DIR"
+install -d -m 0700 -o ubuntu -g ubuntu "$APP_DIR/browser-profile"
 sudo -u ubuntu python3 -m venv "$APP_DIR/.venv"
 sudo -u ubuntu "$APP_DIR/.venv/bin/pip" install --upgrade pip wheel
 sudo -u ubuntu "$APP_DIR/.venv/bin/pip" install -r "$APP_DIR/requirements-worker.txt"
@@ -59,6 +61,7 @@ if [[ ! -f /etc/videosage/worker.env ]]; then
 fi
 
 chmod 0755 "$APP_DIR/deploy/oracle/start_worker.sh"
+chmod 0755 "$APP_DIR/deploy/oracle/google_login.sh"
 install -m 0644 "$APP_DIR/deploy/oracle/videosage-worker.service" \
     /etc/systemd/system/videosage-worker.service
 

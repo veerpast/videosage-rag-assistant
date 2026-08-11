@@ -20,7 +20,8 @@ class GoogleMeetBot:
     def record(self, meeting_url: str, output_path: Path) -> None:
         recorder = PulseAudioRecorder(self.settings.virtual_sink, output_path)
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(
+            context = playwright.chromium.launch_persistent_context(
+                user_data_dir=str(self.settings.browser_profile_dir),
                 headless=False,
                 args=[
                     "--use-fake-ui-for-media-stream",
@@ -30,8 +31,6 @@ class GoogleMeetBot:
                     "--disable-renderer-backgrounding",
                     "--window-size=1280,720",
                 ],
-            )
-            context = browser.new_context(
                 viewport={"width": 1280, "height": 720},
                 locale="en-US",
             )
@@ -45,7 +44,6 @@ class GoogleMeetBot:
             finally:
                 recorder.stop()
                 context.close()
-                browser.close()
 
     def _join(self, page: Page) -> None:
         self._dismiss_optional_dialogs(page)

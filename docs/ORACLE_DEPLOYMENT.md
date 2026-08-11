@@ -17,6 +17,10 @@ The service-role key belongs only on the Oracle VM. The table has RLS enabled;
 authenticated users can select only rows whose `user_id` matches their JWT.
 All writes still pass through the authenticated worker API.
 
+The bot also needs a dedicated free Google account. Google Meet's no-cost
+meetings require participants and third-party note-taking bots to be signed in;
+an anonymous browser can be rejected before the organizer can admit it.
+
 ## 2. Prepare the Oracle Always Free VM
 
 Prefer an Ubuntu Ampere A1 instance within the tenancy's current Always Free
@@ -95,7 +99,39 @@ Expected health response:
 {"status":"ok","queued_jobs":0}
 ```
 
-## 5. Connect Streamlit Community Cloud
+## 5. Sign in the dedicated Google bot account
+
+The worker uses a persistent browser profile at
+`/opt/videosage/browser-profile`. Sign in once through an SSH-only noVNC
+tunnel; ports `5901` and `6080` remain bound to localhost and are never opened
+in the Oracle firewall.
+
+On your computer, keep this tunnel running:
+
+```bash
+ssh -L 6080:127.0.0.1:6080 -i /path/to/oracle-key.key ubuntu@<PUBLIC_IP>
+```
+
+In the SSH session on the VM:
+
+```bash
+sudo systemctl stop videosage-worker
+cd /opt/videosage
+./deploy/oracle/google_login.sh
+```
+
+Open `http://127.0.0.1:6080/vnc.html`, sign in to the dedicated Google account,
+and confirm that the Google Account page loads. Press `Ctrl+C` in the VM
+terminal, then restart the worker:
+
+```bash
+sudo systemctl start videosage-worker
+```
+
+Never use the VM's public IP for noVNC and never add Oracle ingress rules for
+ports `5901` or `6080`.
+
+## 6. Connect Streamlit Community Cloud
 
 In the existing app at `airag-video-meeting.streamlit.app`, open
 **Manage app → Settings → Secrets** and add:
@@ -113,7 +149,7 @@ provider, and no local speech model is required. Then reboot the Streamlit app.
 The **Send bot to meeting** control and autonomous meeting history will become
 active automatically.
 
-## 6. Production checks
+## 7. Production checks
 
 Check service logs:
 
@@ -122,9 +158,10 @@ sudo journalctl -u videosage-worker -f
 sudo journalctl -u caddy -f
 ```
 
-Submit a controlled test meeting from Streamlit. The organizer must admit the
-guest named **VideoSage Assistant**, and the submitter must confirm participant
-recording consent. Confirm these states in the dashboard:
+Submit a controlled test meeting from Streamlit. The submitter must confirm
+participant recording consent. Depending on the meeting access setting, the
+organizer may need to admit the signed-in account named **VideoSage Assistant**.
+Confirm these states in the dashboard:
 
 ```text
 queued → running → completed
@@ -142,8 +179,9 @@ transcript load from Supabase.
 - Queued and interrupted jobs are recovered from Supabase after a VM restart.
 - Completed WAV files are deleted by default. Set `KEEP_RECORDINGS=true` only
   for debugging because Oracle boot-volume space is finite.
-- Google Meet may require organizer admission and can change its UI labels.
-  Browser selector failures are recorded in the meeting's `failed` state.
+- Google Meet requires the persistent bot profile to remain signed in and may
+  require organizer admission. Browser selector failures are recorded in the
+  meeting's `failed` state.
 - Supabase Free can pause after inactivity and has finite database/egress
   quotas. The dashboard fetches transcripts only on demand to reduce egress.
 - This is production-minded portfolio infrastructure, but free tiers do not

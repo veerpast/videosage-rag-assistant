@@ -20,6 +20,7 @@ class WorkerSettings:
     supabase_url: str
     supabase_service_role_key: str
     recordings_dir: Path
+    browser_profile_dir: Path
     bot_name: str
     virtual_sink: str
     max_meeting_seconds: int
@@ -31,11 +32,16 @@ class WorkerSettings:
     def from_env(cls) -> WorkerSettings:
         recordings_dir = Path(os.getenv("RECORDINGS_DIR", "recordings")).resolve()
         recordings_dir.mkdir(parents=True, exist_ok=True)
+        browser_profile_dir = Path(
+            os.getenv("BROWSER_PROFILE_DIR", "browser-profile")
+        ).resolve()
+        browser_profile_dir.mkdir(parents=True, exist_ok=True)
         return cls(
             api_token=_required("WORKER_API_TOKEN"),
             supabase_url=_required("SUPABASE_URL"),
             supabase_service_role_key=_required("SUPABASE_SERVICE_ROLE_KEY"),
             recordings_dir=recordings_dir,
+            browser_profile_dir=browser_profile_dir,
             bot_name=os.getenv("MEET_BOT_NAME", "VideoSage Assistant").strip(),
             virtual_sink=os.getenv("PULSE_SINK_NAME", "Virtual_Sink").strip(),
             max_meeting_seconds=int(os.getenv("MAX_MEETING_SECONDS", "21600")),
