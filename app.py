@@ -30,10 +30,12 @@ from services.auth_client import (
     SupabaseAuthError,
     claim_analysis_slot,
     claim_chat_slot,
+    friendly_sign_in_error,
     refresh_session,
     sign_in,
     sign_out,
     sign_up,
+    validate_signup,
 )
 from services.auth_client import (
     is_configured as auth_is_configured,
@@ -526,6 +528,7 @@ if not st.session_state.auth_session:
         sign_in_tab, sign_up_tab = st.tabs(["Sign in", "Create account"])
 
         with sign_in_tab:
+            st.caption("New here? Use the Create account tab first.")
             with st.form("sign-in-form"):
                 login_email = st.text_input("Email", key="login-email")
                 login_password = st.text_input(
@@ -539,9 +542,13 @@ if not st.session_state.auth_session:
                     st.session_state.auth_session = sign_in(login_email, login_password)
                     st.rerun()
                 except SupabaseAuthError as exc:
-                    st.error(str(exc))
+                    st.error(friendly_sign_in_error(exc))
 
         with sign_up_tab:
+            st.caption(
+                "Enter your details, accept the privacy notice, then create "
+                "your VideoSage account."
+            )
             with st.form("sign-up-form"):
                 signup_email = st.text_input("Email", key="signup-email")
                 signup_password = st.text_input(
@@ -555,11 +562,14 @@ if not st.session_state.auth_session:
                 signup_submit = st.form_submit_button(
                     "Create account",
                     use_container_width=True,
-                    disabled=not signup_accept,
                 )
             if signup_submit:
-                if len(signup_password) < 8:
-                    st.error("Use a password with at least 8 characters.")
+                if validation_error := validate_signup(
+                    signup_email,
+                    signup_password,
+                    signup_accept,
+                ):
+                    st.error(validation_error)
                 else:
                     try:
                         new_session = sign_up(signup_email, signup_password)

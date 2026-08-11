@@ -13,6 +13,32 @@ class SupabaseAuthError(RuntimeError):
     pass
 
 
+def validate_signup(
+    email: str,
+    password: str,
+    privacy_accepted: bool,
+) -> str | None:
+    """Return a user-facing signup validation error, if any."""
+    if not email.strip():
+        return "Enter your email address."
+    if not privacy_accepted:
+        return "Accept the privacy notice before creating an account."
+    if len(password) < 8:
+        return "Use a password with at least 8 characters."
+    return None
+
+
+def friendly_sign_in_error(error: SupabaseAuthError) -> str:
+    """Make Supabase's credential error actionable without leaking account state."""
+    message = str(error)
+    if "invalid login credentials" in message.lower():
+        return (
+            "No account matches those credentials, or the password is incorrect. "
+            "If this is your first visit, use the Create account tab above."
+        )
+    return message
+
+
 def is_configured() -> bool:
     return bool(
         os.getenv("SUPABASE_URL", "").strip()
