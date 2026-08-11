@@ -25,12 +25,22 @@ both Streamlit and Oracle datacenter IPs. Current yt-dlp releases additionally
 require JavaScript/Proof-of-Origin handling, which still cannot clear an
 IP-level `LOGIN_REQUIRED` response without cookies or a residential proxy.
 Account cookies were rejected as an unsafe fix because upstream documentation
-warns they may lead to a permanent account ban. The deployed fast path now uses
-an authenticated Oracle caption gateway and a validated, low-volume edge-caption
-fallback. Only an 11-character public video ID is forwarded; responses require
-transcript metadata, timestamps, a 5 MB ceiling, and a 15-second timeout.
-Captionless or blocked media receives a direct-upload instruction instead of raw
-yt-dlp internals.
+warns they may lead to a permanent account ban. An Oracle relay was tested but
+rejected because the fallback provider also rate-limited the VM's datacenter IP.
+The deployed fast path now uses a hidden Streamlit component to fetch public
+captions from the user's browser. Only an 11-character public video ID and
+language code are sent; the Python boundary accepts a response only when the ID
+matches, transcript metadata and timestamps are present, and the payload stays
+below 5 MB. No VideoSage JWT, Google cookie, uploaded media, or meeting content
+crosses that boundary. Captionless or blocked media receives a direct-upload
+instruction instead of raw yt-dlp internals.
+
+**Rejected experiments:** A current Node.js runtime, yt-dlp's EJS challenge
+solver, and the bgutil Proof-of-Origin token provider were tested on Oracle.
+They loaded correctly, but YouTube returned `LOGIN_REQUIRED` before a token
+challenge could be solved. Account-cookie automation and residential proxies
+were rejected because they introduce account-ban, privacy, maintenance, or cost
+risk. The unused experimental packages were removed after the diagnosis.
 
 ## Upstream transcript API breaking change
 

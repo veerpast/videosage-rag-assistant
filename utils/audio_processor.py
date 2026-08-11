@@ -1,10 +1,7 @@
-import logging
 import os
 import re
-from collections.abc import Callable
 from urllib.parse import parse_qs, urlparse
 
-import requests
 import yt_dlp
 from pydub import AudioSegment
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -13,11 +10,6 @@ from yt_dlp.networking.impersonate import ImpersonateTarget
 
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-LOGGER = logging.getLogger(__name__)
-EDGE_TRANSCRIPT_URL = os.getenv(
-    "YOUTUBE_TRANSCRIPT_FALLBACK_URL",
-    "https://youtube-transcript.ai/transcript/{video_id}.txt",
-).strip()
 
 
 def extract_youtube_id(url: str) -> str:
@@ -39,44 +31,9 @@ def is_youtube_url(url: str) -> bool:
     return bool(extract_youtube_id(url))
 
 
-def fetch_edge_transcript(video_id: str, language: str = "en") -> str | None:
-    """Fetch public captions through a low-volume edge fallback.
-
-    Cloud hosting IPs are frequently blocked by YouTube even for caption-only
-    requests. This provider accepts only the validated public video ID; no user
-    token, account cookie, uploaded media, or private data is sent.
-    """
-    if not EDGE_TRANSCRIPT_URL or not re.fullmatch(r"[0-9A-Za-z_-]{11}", video_id):
-        return None
-
-    endpoint = EDGE_TRANSCRIPT_URL.format(video_id=video_id)
-    try:
-        response = requests.get(
-            endpoint,
-            params={"lang": language},
-            headers={"Accept": "text/markdown, text/plain;q=0.9"},
-            timeout=15,
-        )
-        response.raise_for_status()
-        if len(response.content) > 5_000_000:
-            raise ValueError("Transcript response exceeded the 5 MB safety limit.")
-        transcript = response.text.strip()
-        if len(transcript) < 40:
-            return None
-
-        # Remove provider metadata and keep the timestamped transcript body.
-        body_start = re.search(r"(?m)^\[\d{1,2}:\d{2}(?::\d{2})?\]", transcript)
-        if "# Transcript:" not in transcript or not body_start:
-            return None
-        return transcript[body_start.start() :]
-    except (requests.RequestException, ValueError) as exc:
-        LOGGER.warning("Edge transcript fallback failed: %s", type(exc).__name__)
-        return None
-
-
 def fetch_fast_transcript(
     url: str,
-    fallback: Callable[[str], str | None] | None = None,
+    browser_transcript: str | None = None,
 ) -> str | None:
     """Attempts to fetch captions directly without downloading audio."""
     video_id = extract_youtube_id(url)
@@ -91,12 +48,10 @@ def fetch_fast_transcript(
 
         formatter = TextFormatter()
         return formatter.format_transcript(transcript_list)
-    except Exception as exc:  # noqa: BLE001 - provider exceptions vary by release
-        LOGGER.warning("Direct transcript path failed: %s", type(exc).__name__)
-
-    # The edge path keeps captioned YouTube analysis usable when YouTube blocks
-    # Streamlit/Oracle datacenter IPs. It is deliberately caption-only.
-    return fallback(video_id) if fallback else fetch_edge_transcript(video_id)
+    except Exception:  # noqa: BLE001 - provider exceptions vary by release
+        # The deployed UI prefetches public captions from the user's browser,
+        # avoiding the cloud IP block without exposing an account cookie.
+        return browser_transcript
 
 
 def download_youtube_audio(url: str) -> str:
@@ -151,13 +106,13 @@ def chunk_audio(wav_path: str, chunk_minutes: int = 10) -> list:
 
 def process_input(
     source: str,
-    transcript_fallback: Callable[[str], str | None] | None = None,
+    browser_transcript: str | None = None,
 ):
     if source.startswith(("http://", "https://")):
         if not is_youtube_url(source):
             raise ValueError("Only valid YouTube URLs are supported.")
         print("Detected YouTube URL. Trying Fast Path (transcript extraction)...")
-        fast_transcript = fetch_fast_transcript(source, transcript_fallback)
+        fast_transcript = fetch_fast_transcript(source, browser_transcript)
         if fast_transcript:
             print(
                 "Fast Path successful! Transcript retrieved directly without downloading audio."

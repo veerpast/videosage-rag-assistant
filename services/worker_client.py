@@ -87,11 +87,5 @@ def get_meeting(meeting_id: str, user_token: str) -> dict[str, Any]:
     return _request("GET", f"/v1/meetings/{meeting_id}", user_token)
 
 
-def get_youtube_transcript(video_id: str, user_token: str) -> str | None:
-    payload = _request("GET", f"/v1/youtube/transcript/{video_id}", user_token)
-    transcript = payload.get("transcript")
-    return transcript if isinstance(transcript, str) and transcript.strip() else None
-
-
 def delete_meeting(meeting_id: str, user_token: str) -> None:
     _request("DELETE", f"/v1/meetings/{meeting_id}", user_token)

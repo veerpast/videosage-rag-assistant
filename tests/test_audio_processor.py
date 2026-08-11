@@ -1,9 +1,8 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from utils.audio_processor import (
     extract_youtube_id,
-    fetch_edge_transcript,
     fetch_fast_transcript,
     is_youtube_url,
 )
@@ -25,40 +24,16 @@ class YouTubeUrlTests(unittest.TestCase):
     def test_rejects_non_youtube_url(self):
         self.assertFalse(is_youtube_url("https://example.com/watch?v=_Q-e_nczWqM"))
 
-    @patch("utils.audio_processor.requests.get")
-    def test_edge_transcript_strips_provider_metadata(self, mock_get):
-        response = MagicMock()
-        response.content = b"transcript"
-        response.text = "# Transcript: Demo\n\n[0:00] Hello\n[0:02] World"
-        mock_get.return_value = response
-
-        transcript = fetch_edge_transcript("_Q-e_nczWqM")
-
-        self.assertEqual(transcript, "[0:00] Hello\n[0:02] World")
-        request_url = mock_get.call_args.args[0]
-        self.assertNotIn("youtube.com", request_url)
-        self.assertEqual(mock_get.call_args.kwargs["timeout"], 15)
-
-    @patch("utils.audio_processor.requests.get")
-    def test_edge_transcript_rejects_oversized_response(self, mock_get):
-        response = MagicMock()
-        response.content = b"x" * 5_000_001
-        response.text = "[0:00] should not be accepted"
-        mock_get.return_value = response
-
-        self.assertIsNone(fetch_edge_transcript("_Q-e_nczWqM"))
-
     @patch("utils.audio_processor.YouTubeTranscriptApi")
-    def test_fast_path_uses_injected_fallback_after_cloud_block(self, transcript_api):
+    def test_fast_path_uses_browser_transcript_after_cloud_block(self, transcript_api):
         transcript_api.return_value.fetch.side_effect = RuntimeError("blocked")
-        fallback = MagicMock(return_value="[0:00] Cloud-safe transcript")
 
         transcript = fetch_fast_transcript(
-            "https://youtu.be/_Q-e_nczWqM", fallback=fallback
+            "https://youtu.be/_Q-e_nczWqM",
+            browser_transcript="[0:00] Browser transcript",
         )
 
-        self.assertEqual(transcript, "[0:00] Cloud-safe transcript")
-        fallback.assert_called_once_with("_Q-e_nczWqM")
+        self.assertEqual(transcript, "[0:00] Browser transcript")
 
 
 if __name__ == "__main__":

@@ -16,9 +16,10 @@ otherwise sensitive conversations.
   Supabase for the retention period selected by the user (1, 7, or 30 days).
 - Uploaded media is held in a temporary file during analysis and deleted when
   processing finishes. YouTube captions are processed directly when available.
-  If YouTube blocks the hosting provider, the validated public video ID may be
-  sent to youtube-transcript.ai to retrieve public captions; no account token,
-  browser cookie, uploaded file, or private meeting content is sent there.
+  If YouTube blocks the hosting provider, the signed-in user's browser sends the
+  validated public video ID to youtube-transcript.ai to retrieve public captions;
+  no VideoSage account token, Google cookie, uploaded file, or private meeting
+  content is included in that request.
 
 ## Access and isolation
 
@@ -48,7 +49,7 @@ public deployment.
 - Groq processes audio and text for transcription and AI analysis.
 - Supabase provides authentication and database storage.
 - Streamlit Community Cloud hosts the web interface.
-- youtube-transcript.ai provides a low-volume fallback for public YouTube
+- youtube-transcript.ai provides a browser-side fallback for public YouTube
   captions when YouTube blocks cloud-hosted requests.
 
 Each provider processes data under its own terms and privacy policy. Free-tier

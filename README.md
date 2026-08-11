@@ -43,7 +43,9 @@ The project combines browser automation, virtual audio capture, multilingual tra
 
 ```mermaid
 flowchart LR
-    U[Authenticated user] --> S[Streamlit Community Cloud]
+    U[Authenticated user browser] -->|Supabase email/password auth| S[Streamlit Community Cloud]
+    U -->|Public video ID only| C[Caption edge endpoint]
+    C -->|Validated public captions| S
     S -->|Bearer token + user JWT| API[Oracle FastAPI worker]
     API --> Q[Persistent sequential job queue]
     Q --> B[Playwright Chromium on Xvfb]
@@ -71,10 +73,9 @@ flowchart TD
     B -->|YouTube URL| C[Fast Path<br/>Fetch captions with youtube-transcript-api]
     C --> D{Transcript available?}
     D -->|Yes| G[Normalized transcript]
-    D -->|Cloud IP blocked| C2[Authenticated Oracle caption gateway]
-    C2 --> C3[Low-volume edge caption fallback]
-    C3 -->|Caption found| G
-    C3 -->|No caption| E
+    D -->|Cloud IP blocked| C2[Browser caption fetch<br/>public video ID only]
+    C2 -->|Caption found| G
+    C2 -->|No caption| E
 
     B -->|Local media| E[Slow Path Fallback<br/>Download or convert media]
     E --> F[FFmpeg and pydub chunking<br/>Groq Whisper transcription]
@@ -96,7 +97,7 @@ flowchart TD
 | Worker API | FastAPI, Uvicorn, authenticated webhooks |
 | Browser automation | Playwright Chromium, Xvfb |
 | Virtual audio | PulseAudio `Virtual_Sink`, FFmpeg |
-| Media ingestion | youtube-transcript-api, authenticated edge-caption fallback, curl-cffi, yt-dlp, FFmpeg, pydub |
+| Media ingestion | youtube-transcript-api, browser-side caption fallback, curl-cffi, yt-dlp, FFmpeg, pydub |
 | Speech recognition | Groq Whisper transcription and translation |
 | LLM orchestration | LangChain, Groq |
 | Retrieval | ChromaDB, ONNX `all-MiniLM-L6-v2` embeddings |
@@ -162,7 +163,8 @@ deployment does not automatically sign you into the product.
    characters, accept the privacy notice, and confirm the email if Supabase asks.
 3. Return to **Sign in** and use those VideoSage credentials.
 4. For an existing video, paste a captioned YouTube URL or upload an audio/video
-   file, choose the language, and select **Analyse video**.
+   file, wait for the caption status when using YouTube, choose the language,
+   and select **Analyse video**.
 5. Review the generated title, executive summary, action items, decisions, open
    questions, transcript, and grounded RAG chat.
 6. For a live Google Meet, paste the Meet URL, choose retention, confirm every
@@ -173,6 +175,11 @@ deployment does not automatically sign you into the product.
 Every normal account sees only its own meeting records. Deployment ownership
 provides operational access to Streamlit, Oracle, and Supabase, but it is not a
 product-level shortcut around account-scoped access controls.
+
+For operator-wide support or incident response, use the Supabase dashboard's
+Table Editor or SQL Editor. Do not add an application-level “view everyone's
+meetings” bypass: keeping service-role access outside Streamlit preserves RLS
+for every public user.
 
 ## Project structure
 
@@ -199,6 +206,8 @@ videosage-rag-assistant/
 ├── supabase/migrations/      # PostgreSQL schema, indexes, and RLS
 ├── deploy/oracle/            # Xvfb/PulseAudio/Caddy/systemd provisioning
 ├── docs/ORACLE_DEPLOYMENT.md # Complete free-tier deployment runbook
+├── docs/SYSTEM_ARCHITECTURE.md # Detailed trust boundaries and lifecycle
+├── docs/DEMO_AND_SOCIAL_GUIDE.md # YouTube, LinkedIn, and X walkthrough scripts
 ├── requirements.txt
 ├── requirements-worker.txt  # Oracle-only service dependencies
 ├── packages.txt              # Streamlit Community Cloud system package
@@ -217,7 +226,7 @@ videosage-rag-assistant/
 - **Restart-safe queue:** queued and interrupted jobs are recovered from PostgreSQL when the worker restarts.
 - **Free-tier egress control:** history queries omit transcripts; full text is fetched only when a user requests it.
 - **Database-enforced usage limits:** atomic PostgreSQL functions cap daily analyses and RAG questions so browser refreshes cannot bypass free-tier protection.
-- **Hybrid ingestion:** YouTube captions first use direct extraction, then an authenticated Oracle gateway for a low-volume edge-caption fallback when cloud IPs are blocked. Captionless videos and local media use the audio-processing slow path; if YouTube blocks cloud audio too, the UI asks for a direct upload.
+- **Hybrid ingestion:** YouTube captions first use direct extraction. When cloud IPs are blocked, a hidden Streamlit component requests public captions from the user's browser and the server validates the video ID, response shape, timestamps, and 5 MB size ceiling. No VideoSage token, Google cookie, or private media is sent. Captionless videos and local media use the audio-processing slow path; if YouTube blocks cloud audio too, the UI asks for a direct upload.
 - **Chunked processing:** long media is split before transcription and summarization.
 - **Grounded answers:** questions retrieve relevant transcript segments before generation.
 - **Lean cloud runtime:** Chroma's CPU ONNX MiniLM path avoids multi-gigabyte PyTorch/CUDA installs on Streamlit Community Cloud.

@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hmac
 import logging
-import re
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -17,7 +16,6 @@ from pydantic import BaseModel, Field, field_validator
 
 load_dotenv()
 
-from utils.audio_processor import fetch_edge_transcript
 from worker.config import WorkerSettings
 from worker.meet_bot import GoogleMeetBot
 from worker.supabase_store import MeetingStore
@@ -128,26 +126,6 @@ async def health(request: Request) -> dict:
         "status": "ok",
         "queued_jobs": request.app.state.queue.qsize(),
     }
-
-
-@app.get(
-    "/v1/youtube/transcript/{video_id}",
-    dependencies=[Depends(authorize)],
-)
-async def youtube_transcript(
-    video_id: str,
-    user_id: str = Depends(authenticated_user),
-) -> dict[str, str]:
-    del user_id  # Authentication is required even though public captions are shared.
-    if not re.fullmatch(r"[0-9A-Za-z_-]{11}", video_id):
-        raise HTTPException(status_code=422, detail="Invalid YouTube video ID")
-    transcript = await asyncio.to_thread(fetch_edge_transcript, video_id)
-    if not transcript:
-        raise HTTPException(
-            status_code=424,
-            detail="Public captions are unavailable for this video.",
-        )
-    return {"transcript": transcript}
 
 
 @app.post(

@@ -82,33 +82,6 @@ class WorkerApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"items": []})
 
-    @patch("worker.api.fetch_edge_transcript", return_value="[0:00] Hello")
-    def test_authenticated_user_can_fetch_public_youtube_captions(self, fetch):
-        response = self.client.get(
-            "/v1/youtube/transcript/_Q-e_nczWqM",
-            headers={
-                "Authorization": "Bearer service-token",
-                "X-User-Token": "valid-user-token",
-            },
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"transcript": "[0:00] Hello"})
-        fetch.assert_called_once_with("_Q-e_nczWqM")
-
-    @patch("worker.api.fetch_edge_transcript")
-    def test_youtube_caption_gateway_rejects_invalid_video_id(self, fetch):
-        response = self.client.get(
-            "/v1/youtube/transcript/not-valid",
-            headers={
-                "Authorization": "Bearer service-token",
-                "X-User-Token": "valid-user-token",
-            },
-        )
-
-        self.assertEqual(response.status_code, 422)
-        fetch.assert_not_called()
-
     def test_meeting_submission_requires_recording_consent(self):
         response = self.client.post(
             "/v1/meetings",

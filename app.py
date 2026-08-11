@@ -38,18 +38,22 @@ from services.auth_client import (
 from services.auth_client import (
     is_configured as auth_is_configured,
 )
+from services.browser_transcript import (
+    BrowserTranscript,
+    get_browser_transcript,
+    retry_browser_transcript,
+)
 from services.worker_client import (
     WorkerClientError,
     delete_meeting,
     get_meeting,
-    get_youtube_transcript,
     list_meetings,
     submit_meeting,
 )
 from services.worker_client import (
     is_configured as worker_is_configured,
 )
-from utils.audio_processor import process_input
+from utils.audio_processor import extract_youtube_id, process_input
 
 # ─── Page Config ────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -600,10 +604,22 @@ with st.sidebar:
     source_type = st.radio("Source", ["YouTube URL", "Upload media"])
     source = ""
     uploaded_media = None
+    browser_caption = BrowserTranscript(status="idle")
     if source_type == "YouTube URL":
         source = st.text_input(
             "YouTube URL", placeholder="https://youtube.com/watch?v=..."
         )
+        video_id = extract_youtube_id(source.strip())
+        browser_caption = get_browser_transcript(video_id)
+        if browser_caption.status == "loading":
+            st.caption("Fetching public captions securely in your browser…")
+        elif browser_caption.status == "ready":
+            st.caption("✓ Public captions ready — fast path available")
+        elif browser_caption.status == "unavailable":
+            st.caption("Captions unavailable — audio fallback will be attempted")
+            if st.button("Retry public captions", use_container_width=True):
+                retry_browser_transcript(video_id)
+                st.rerun()
     else:
         uploaded_media = st.file_uploader(
             "Audio or video file",
@@ -612,7 +628,12 @@ with st.sidebar:
 
     language = st.selectbox("Language", ["english", "hinglish"], index=0)
 
-    run_btn = st.button("Analyse video", type="primary", use_container_width=True)
+    run_btn = st.button(
+        "Analyse video",
+        type="primary",
+        use_container_width=True,
+        disabled=browser_caption.status == "loading",
+    )
 
     st.markdown("---")
     st.markdown(
@@ -736,12 +757,7 @@ if run_btn:
                 st.info("⚙️ Pipeline running — see sidebar for live status…")
 
             update_step("audio", "active")
-            res = process_input(
-                source,
-                transcript_fallback=lambda video_id: get_youtube_transcript(
-                    video_id, user_token
-                ),
-            )
+            res = process_input(source, browser_transcript=browser_caption.transcript)
             update_step("audio", "done")
 
             update_step("transcript", "active")
