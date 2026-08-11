@@ -6,6 +6,8 @@
 
 A production-oriented meeting-intelligence platform that can process uploaded media or autonomously attend Google Meet sessions, then generate searchable transcripts, summaries, decisions, and action items.
 
+**Live frontend:** [airag-video-meeting.streamlit.app](https://airag-video-meeting.streamlit.app/)
+
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)
 ![LangChain](https://img.shields.io/badge/LangChain-RAG-1C3C3C?style=flat-square)
@@ -24,12 +26,12 @@ The project combines browser automation, virtual audio capture, multilingual tra
 
 ## What it does
 
-- Accepts a YouTube URL or a local audio/video file path.
+- Accepts a YouTube URL or a drag-and-drop audio/video upload.
 - Sends an autonomous browser bot to a Google Meet URL through an authenticated webhook.
 - Stores private meeting history in Supabase with email/password authentication and PostgreSQL RLS.
 - Downloads or converts media and splits long recordings into manageable chunks.
-- Transcribes English audio with Groq Whisper and falls back to local Whisper.
-- Supports Hinglish translation through Sarvam AI with Groq fallback.
+- Transcribes English audio with Groq Whisper; local Whisper is an optional developer fallback.
+- Supports Hinglish translation with Groq and optionally prefers Sarvam AI when configured.
 - Generates a professional title and concise meeting summary.
 - Extracts action items, key decisions, and unresolved questions.
 - Builds an isolated in-memory Chroma index for each active RAG workspace.
@@ -92,9 +94,9 @@ flowchart TD
 | Browser automation | Playwright Chromium, Xvfb |
 | Virtual audio | PulseAudio `Virtual_Sink`, FFmpeg |
 | Media ingestion | youtube-transcript-api, curl-cffi, yt-dlp, FFmpeg, pydub |
-| Speech recognition | Groq Whisper, OpenAI Whisper, Sarvam AI |
+| Speech recognition | Groq Whisper; optional local Whisper and Sarvam AI |
 | LLM orchestration | LangChain, Groq |
-| Retrieval | ChromaDB, Hugging Face sentence transformers |
+| Retrieval | ChromaDB, ONNX `all-MiniLM-L6-v2` embeddings |
 | Persistence | Supabase PostgreSQL |
 | Infrastructure | Oracle Cloud Ampere A1, Caddy, systemd |
 | Language | Python 3.10+ |
@@ -110,6 +112,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+The hosted application uses Groq for transcription. To add the optional local
+Whisper fallback on a development machine, install `requirements-local.txt`
+instead.
 
 FFmpeg must also be installed on your machine. On macOS:
 
@@ -131,8 +137,8 @@ cp .env.example .env
 | `GROQ_LLM_MODEL` | No | Groq chat model; defaults to `llama-3.1-8b-instant` |
 | `GROQ_STT_MODEL` | No | Groq transcription model; defaults to `whisper-large-v3-turbo` |
 | `GROQ_TRANSLATION_MODEL` | No | Groq audio translation model; defaults to `whisper-large-v3` |
-| `SARVAM_API_KEY` | For Hinglish | Speech-to-text translation |
-| `WHISPER_MODEL` | No | Local Whisper model; defaults to `small` |
+| `SARVAM_API_KEY` | No | Optional Sarvam-first Hinglish translation; Groq remains the fallback |
+| `WHISPER_MODEL` | Local only | Optional local Whisper model; defaults to `small` |
 | `SUPABASE_URL` | Yes | Supabase project URL used by authentication |
 | `SUPABASE_ANON_KEY` | Yes | Public Supabase key used for sign-in and sign-up |
 | `WORKER_API_URL` | For Meet bot | HTTPS URL of the Oracle worker |
@@ -172,6 +178,7 @@ videosage-rag-assistant/
 ├── deploy/oracle/            # Xvfb/PulseAudio/Caddy/systemd provisioning
 ├── docs/ORACLE_DEPLOYMENT.md # Complete free-tier deployment runbook
 ├── requirements.txt
+├── requirements-local.txt   # Optional offline Whisper dependencies
 ├── requirements-worker.txt  # Oracle-only service dependencies
 ├── packages.txt              # Streamlit Community Cloud system package
 └── .streamlit/config.toml
@@ -190,18 +197,20 @@ videosage-rag-assistant/
 - **Hybrid ingestion:** YouTube captions take the fast path; unavailable captions and local media use the audio-processing slow path.
 - **Chunked processing:** long media is split before transcription and summarization.
 - **Grounded answers:** questions retrieve relevant transcript segments before generation.
-- **Transcription resilience:** the slow path uses hosted Whisper with local Whisper support for audio transcription.
+- **Lean cloud runtime:** Chroma's CPU ONNX MiniLM path avoids multi-gigabyte PyTorch/CUDA installs on Streamlit Community Cloud.
+- **Transcription resilience:** the slow path uses hosted Groq Whisper; local Whisper remains an opt-in development fallback.
 - **Focused interface:** the UI prioritizes source input, processing state, structured results, and conversation without unnecessary dashboard clutter.
 
 ## Deployment
 
-The repository is prepared for Streamlit Community Cloud:
+The Streamlit frontend and Supabase backend are deployed. The autonomous Meet
+bot becomes available after the Oracle worker URL and token are added:
 
-1. Push the project to GitHub.
-2. In Streamlit Community Cloud, create an app from the repository.
-3. Set the entry point to `app.py`.
-4. Add `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and the Oracle worker settings in **App settings → Secrets**.
-5. Deploy.
+1. Deploy the repository's `app.py` on Streamlit Community Cloud.
+2. Add `GROQ_API_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in **App settings → Secrets**.
+3. Apply `supabase/migrations/001_meeting_runs.sql` to a Supabase Free project.
+4. Deploy the Oracle worker using `docs/ORACLE_DEPLOYMENT.md`.
+5. Add `WORKER_API_URL` and `WORKER_API_TOKEN` to Streamlit Secrets.
 
 The complete Oracle VM, Supabase migration, HTTPS, systemd, and Streamlit
 configuration procedure is in [the Oracle deployment runbook](docs/ORACLE_DEPLOYMENT.md).
@@ -210,11 +219,16 @@ The service-by-service quota and no-overage strategy is documented in the
 
 This architecture uses [Streamlit Community Cloud](https://docs.streamlit.io/deploy/streamlit-community-cloud), the [Oracle Ampere A1 Always Free allowance](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier.htm), and [Supabase Free](https://supabase.com/pricing). Free tiers have resource limits and no production uptime SLA.
 
+## Current deployment status
+
+- Streamlit frontend: deployed.
+- Supabase Auth, PostgreSQL schema, RLS, history, and quotas: deployed.
+- YouTube and upload analysis: available after sign-in.
+- Oracle Google Meet worker: code and deployment automation are ready; the live VM endpoint still needs to be connected.
+
 ## Roadmap
 
-- Direct drag-and-drop uploads.
 - Speaker diarization and timestamped transcript navigation.
-- Export to Markdown and PDF.
 - Streaming pipeline progress and partial results.
 - Speaker-aware transcripts for autonomous meetings.
 

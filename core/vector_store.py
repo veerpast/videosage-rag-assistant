@@ -1,26 +1,10 @@
-from functools import lru_cache
-
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-
-
-@lru_cache(maxsize=1)
-def get_embeddings():
-    try:
-        from langchain_huggingface import HuggingFaceEmbeddings
-    except ImportError:
-        from langchain_community.embeddings import HuggingFaceEmbeddings
-
-    return HuggingFaceEmbeddings(
-        model_name=EMBEDDING_MODEL, model_kwargs={"device": "cpu"}
-    )
-
 
 def build_vector_store(transcript: str) -> Chroma:
-    print("Building vector Store")
+    print("Building in-memory vector store")
 
     splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     chunks = splitter.split_text(transcript)
@@ -30,10 +14,12 @@ def build_vector_store(transcript: str) -> Chroma:
         for i, chunk in enumerate(chunks)
     ]
 
-    embeddings = get_embeddings()
+    # With no LangChain embedding wrapper, Chroma uses its bundled ONNX
+    # all-MiniLM-L6-v2 model. This keeps semantic retrieval on CPU without
+    # pulling PyTorch/CUDA packages into the free Streamlit deployment.
     vector_store = Chroma.from_documents(
         documents=docs,
-        embedding=embeddings,
+        embedding=None,
     )
 
     return vector_store
