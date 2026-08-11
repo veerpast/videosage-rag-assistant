@@ -32,21 +32,29 @@ The project combines local speech recognition, multilingual transcription, LLM-b
 - Extracts action items, key decisions, and unresolved questions.
 - Builds a persistent Chroma vector index from the transcript.
 - Answers follow-up questions with retrieval-augmented generation.
-- Uses Groq first, Mistral second, and local Ollama as an offline fallback.
+- Uses Groq for hosted language-model inference.
 - Presents the workflow in a responsive, purpose-designed Streamlit UI.
 
 ## Product workflow
 
 ```mermaid
-flowchart LR
-    A[YouTube URL or local media] --> B[Audio preparation]
-    B --> C[Whisper or Sarvam transcription]
-    C --> D[Mistral analysis]
-    D --> E[Summary and structured insights]
-    C --> F[Chroma vector store]
-    F --> G[RAG conversation]
-    E --> H[Streamlit workspace]
-    G --> H
+flowchart TD
+    A[YouTube URL or local media] --> B{Two-Tier Hybrid<br/>Ingestion Router}
+
+    B -->|YouTube URL| C[Fast Path<br/>Fetch captions with youtube-transcript-api]
+    C --> D{Transcript available?}
+    D -->|Yes| G[Normalized transcript]
+    D -->|No| E
+
+    B -->|Local media| E[Slow Path Fallback<br/>Download or convert media]
+    E --> F[FFmpeg and pydub chunking<br/>Whisper or Sarvam transcription]
+    F --> G
+
+    G --> H[Groq analysis<br/>Summary and structured insights]
+    G --> I[Chroma vector store]
+    I --> J[RAG conversation]
+    H --> K[Streamlit workspace]
+    J --> K
 ```
 
 ## Tech stack
@@ -54,10 +62,9 @@ flowchart LR
 | Layer | Technology |
 |---|---|
 | Interface | Streamlit, custom CSS |
-| Media ingestion | yt-dlp, FFmpeg, pydub |
+| Media ingestion | youtube-transcript-api, curl-cffi, yt-dlp, FFmpeg, pydub |
 | Speech recognition | Groq Whisper, OpenAI Whisper, Sarvam AI |
-| LLM orchestration | LangChain, Groq, Mistral AI |
-| Local fallback | Ollama |
+| LLM orchestration | LangChain, Groq |
 | Retrieval | ChromaDB, Hugging Face sentence transformers |
 | Language | Python 3.10+ |
 
@@ -89,11 +96,12 @@ cp .env.example .env
 
 | Variable | Required | Purpose |
 |---|---:|---|
-| `GROQ_API_KEY` | Recommended | Primary LLM and hosted Whisper transcription |
-| `MISTRAL_API_KEY` | No | Secondary cloud LLM fallback |
+| `GROQ_API_KEY` | Yes | Groq LLM inference and hosted Whisper transcription |
+| `GROQ_LLM_MODEL` | No | Groq chat model; defaults to `llama-3.1-8b-instant` |
+| `GROQ_STT_MODEL` | No | Groq transcription model; defaults to `whisper-large-v3-turbo` |
+| `GROQ_TRANSLATION_MODEL` | No | Groq audio translation model; defaults to `whisper-large-v3` |
 | `SARVAM_API_KEY` | For Hinglish | Speech-to-text translation |
 | `WHISPER_MODEL` | No | Local Whisper model; defaults to `small` |
-| `OLLAMA_MODEL` | No | Local fallback model; defaults to `qwen2.5-coder:1.5b` |
 
 ### 3. Run the application
 
@@ -124,11 +132,11 @@ videosage-rag-assistant/
 
 ## Design decisions
 
-- **One provider strategy:** Groq powers both local and deployed runs for consistent behavior.
-- **Layered resilience:** Groq → Mistral → Ollama for text generation, with Ollama used only when installed locally.
+- **One LLM provider:** Groq handles title generation, summarization, structured extraction, and RAG responses in both local and deployed runs.
+- **Hybrid ingestion:** YouTube captions take the fast path; unavailable captions and local media use the audio-processing slow path.
 - **Chunked processing:** long media is split before transcription and summarization.
 - **Grounded answers:** questions retrieve relevant transcript segments before generation.
-- **Graceful model fallback:** supported LLM calls can use Ollama if the hosted provider fails.
+- **Transcription resilience:** the slow path uses hosted Whisper with local Whisper support for audio transcription.
 - **Focused interface:** the UI prioritizes source input, processing state, structured results, and conversation without unnecessary dashboard clutter.
 
 ## Deployment
@@ -138,7 +146,7 @@ The repository is prepared for Streamlit Community Cloud:
 1. Push the project to GitHub.
 2. In Streamlit Community Cloud, create an app from the repository.
 3. Set the entry point to `app.py`.
-4. Add `GROQ_API_KEY` and optional fallback keys in **App settings → Secrets**.
+4. Add `GROQ_API_KEY` and, if needed for Hinglish audio, `SARVAM_API_KEY` in **App settings → Secrets**.
 5. Deploy.
 
 > Whisper and sentence-transformer models are resource-intensive. For production traffic, moving transcription and vector indexing to background workers or managed services is recommended.
