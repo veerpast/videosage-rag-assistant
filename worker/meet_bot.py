@@ -24,9 +24,10 @@ class GoogleMeetBot:
                 user_data_dir=str(self.settings.browser_profile_dir),
                 executable_path=self.settings.chrome_executable_path,
                 headless=False,
-                ignore_default_args=["--enable-automation"],
+                ignore_default_args=["--enable-automation", "--mute-audio"],
                 args=[
                     "--use-fake-ui-for-media-stream",
+                    "--use-fake-device-for-media-stream",
                     "--autoplay-policy=no-user-gesture-required",
                     "--disable-dev-shm-usage",
                     "--disable-background-timer-throttling",

@@ -81,6 +81,18 @@ word “video,” so the original end-state detector missed the failure.
 regression test. Failed jobs now terminate cleanly instead of waiting for the full
 meeting timeout.
 
+## Meet pre-join blocked on missing media hardware
+
+**Problem:** After the Google identity issue was fixed, the VM reached the signed-in
+Meet greenroom but stayed on “Getting ready…” because the headless VM has no
+physical camera or microphone. Playwright also supplies a default audio-mute flag,
+which would prevent PulseAudio from receiving the meeting output.
+
+**Resolution:** Chrome receives a fake media device plus automatic media permission
+for the pre-join checks, while the bot turns its local mic and camera off before
+joining. The worker explicitly removes Playwright's `--mute-audio` default so only
+incoming meeting audio is routed to the virtual PulseAudio sink and FFmpeg.
+
 ## Supabase optional-row SDK behavior
 
 **Problem:** `supabase-py` returned `None` when `maybe_single()` found no row, but
