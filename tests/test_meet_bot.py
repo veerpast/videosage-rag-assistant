@@ -19,6 +19,26 @@ class MeetEndMarkerTests(unittest.TestCase):
 
         self.assertTrue(GoogleMeetBot._has_end_marker(page))
 
+    def test_detects_empty_meeting_from_people_count(self):
+        page = MagicMock()
+        page.get_by_text.return_value.first.is_visible.return_value = False
+        people_button = page.get_by_role.return_value.first
+        people_button.is_visible.return_value = True
+        people_button.inner_text.return_value = "1"
+        people_button.get_attribute.return_value = "People"
+
+        self.assertTrue(GoogleMeetBot._is_empty_meeting(page))
+
+    def test_does_not_treat_two_participants_as_empty(self):
+        page = MagicMock()
+        page.get_by_text.return_value.first.is_visible.return_value = False
+        people_button = page.get_by_role.return_value.first
+        people_button.is_visible.return_value = True
+        people_button.inner_text.return_value = "2"
+        people_button.get_attribute.return_value = "People"
+
+        self.assertFalse(GoogleMeetBot._is_empty_meeting(page))
+
 
 if __name__ == "__main__":
     unittest.main()

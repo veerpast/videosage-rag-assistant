@@ -144,6 +144,26 @@ class GoogleMeetBot:
                     return True
             except PlaywrightTimeoutError:
                 continue
+        people_button = page.get_by_role(
+            "button",
+            name=re.compile(r"(people|participants|show everyone)", re.IGNORECASE),
+        ).first
+        try:
+            if people_button.is_visible(timeout=500):
+                label = " ".join(
+                    filter(
+                        None,
+                        (
+                            people_button.inner_text(timeout=500),
+                            people_button.get_attribute("aria-label", timeout=500),
+                        ),
+                    )
+                )
+                counts = [int(value) for value in re.findall(r"\b\d+\b", label)]
+                if counts:
+                    return min(counts) <= 1
+        except PlaywrightTimeoutError:
+            pass
         return False
 
     @staticmethod

@@ -93,6 +93,17 @@ for the pre-join checks, while the bot turns its local mic and camera off before
 joining. The worker explicitly removes Playwright's `--mute-audio` default so only
 incoming meeting audio is routed to the virtual PulseAudio sink and FFmpeg.
 
+## Empty-room detection changed from copy to a participant counter
+
+**Problem:** Google no longer showed the expected “You're the only one here” text
+when the host disconnected. The visible participant counter correctly changed to
+`1`, but the text-only detector kept the bot recording an empty room.
+
+**Resolution:** Empty-room detection now keeps the text markers as a compatibility
+path and falls back to the accessible People/Participants count. Regression tests
+cover both one-participant and two-participant states before the grace timer can
+end a recording.
+
 ## Supabase optional-row SDK behavior
 
 **Problem:** `supabase-py` returned `None` when `maybe_single()` found no row, but
